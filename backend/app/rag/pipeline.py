@@ -83,9 +83,7 @@ class RAGPipeline:
                     contexts=selected_chunks,
                     question=question,
                 )
-                stream = await self.generator.stream_completion(prompt_preview)
-                async for part in stream:
-                    delta = part.choices[0].delta.content or ""
+                async for delta in self.generator.stream_completion(prompt_preview):
                     if not delta:
                         continue
                     answer_parts.append(delta)

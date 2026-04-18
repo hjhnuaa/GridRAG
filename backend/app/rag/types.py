@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from langchain_core.documents import Document
+
 
 @dataclass(slots=True)
 class ChunkMetadata:
@@ -67,6 +69,21 @@ class Chunk:
             "fused_score": self.fused_score,
             "rerank_score": self.rerank_score,
         }
+
+    def to_langchain_document(self) -> Document:
+        """Convert the chunk into a LangChain document."""
+
+        return Document(
+            page_content=self.text,
+            metadata={
+                **self.metadata.to_dict(),
+                "chunk_id": self.id,
+                "dense_score": self.dense_score,
+                "sparse_score": self.sparse_score,
+                "fused_score": self.fused_score,
+                "rerank_score": self.rerank_score,
+            },
+        )
 
 
 @dataclass(slots=True)

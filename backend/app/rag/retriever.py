@@ -9,6 +9,8 @@ from collections import defaultdict
 from functools import lru_cache
 from typing import Any, Protocol, cast
 
+from langchain_core.documents import Document
+from langchain_core.retrievers import BaseRetriever
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -208,3 +210,48 @@ class HybridRetriever:
 
         jieba_module = _get_jieba_module()
         return [token.strip() for token in jieba_module.lcut_for_search(text) if token.strip()]
+
+    def as_langchain_retriever(
+        self,
+        session: AsyncSession,
+        doc_types: list[str] | None = None,
+        top_k: int | None = None,
+    ) -> LangChainHybridRetriever:
+        """Wrap the retriever as a LangChain BaseRetriever."""
+
+        return LangChainHybridRetriever(
+            retriever=self,
+            session=session,
+            doc_types=doc_types,
+            top_k=top_k,
+        )
+
+
+class LangChainHybridRetriever(BaseRetriever):
+    """LangChain-compatible adapter over the existing hybrid retriever."""
+
+    retriever: HybridRetriever
+    session: AsyncSession
+    doc_types: list[str] | None = None
+    top_k: int | None = None
+
+    class Config:
+        """Allow arbitrary runtime dependencies in the retriever wrapper."""
+
+        arbitrary_types_allowed = True
+
+    def _get_relevant_documents(self, query: str, *, run_manager: Any = None) -> list[Document]:
+        """Synchronous retrieval is not supported for this adapter."""
+
+        raise NotImplementedError("Use ainvoke/aget_relevant_documents with AsyncSession-backed retrieval.")
+
+    async def _aget_relevant_documents(self, query: str, *, run_manager: Any = None) -> list[Document]:
+        """Return fused retrieval results as LangChain documents."""
+
+        result = await self.retriever.retrieve(
+            self.session,
+            query,
+            doc_types=self.doc_types,
+            top_k=self.top_k,
+        )
+        return [chunk.to_langchain_document() for chunk in result.fused]

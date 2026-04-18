@@ -49,7 +49,9 @@ def _build_local_visit_suggest(
     """Build deterministic visit suggestions when the LLM is unavailable."""
 
     resident_id = str(resident.get("id", ""))
-    tags = [str(item) for item in resident.get("tags") or []]
+    raw_tags = resident.get("tags")
+    tag_items = raw_tags if isinstance(raw_tags, (list, tuple, set)) else []
+    tags = [str(item) for item in tag_items]
     suggestions: list[str] = []
 
     for tag in tags:
