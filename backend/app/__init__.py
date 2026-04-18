@@ -1,0 +1,2 @@
+"""GridRAG backend application package."""
+

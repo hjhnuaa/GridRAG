@@ -1,0 +1,2 @@
+export { KnowledgePage } from "./KnowledgePage";
+
