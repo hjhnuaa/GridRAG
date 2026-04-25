@@ -9,7 +9,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
 from app.models.base import Base
-from app.models.chat_history import ChatHistory, RetrievalLog
+from app.models.chat_history import ChatHistory, ChatMemory, RetrievalLog
 from app.models.document import Document, DocumentChunk
 from app.models.event import Event
 from app.models.resident import Resident, VisitRecord
@@ -59,4 +59,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-

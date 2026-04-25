@@ -17,6 +17,7 @@ from app.rag.pipeline import RAGPipeline
 from app.schemas.chat import ChatAskRequest
 from app.schemas.common import ApiResponse, success_response
 from app.services.chat import list_chat_history, save_chat_message
+from app.services.memory import maybe_save_user_memory
 
 router = APIRouter(prefix="/chat", tags=["智能问答"])
 logger = get_logger(__name__)
@@ -38,6 +39,7 @@ async def ask(
     """Stream a grounded answer via Server-Sent Events."""
 
     await save_chat_message(session, payload.session_id, "user", payload.question)
+    await maybe_save_user_memory(session, payload.session_id, payload.question)
 
     async def event_stream() -> AsyncGenerator[str, None]:
         """Yield SSE events from the RAG pipeline."""
@@ -48,6 +50,7 @@ async def ask(
                 session_id=payload.session_id,
                 question=payload.question,
                 doc_types=payload.filters.doc_types,
+                enable_web_search=payload.filters.enable_web_search,
             ):
                 yield _sse_payload(event)
         except AppError as exc:
@@ -90,7 +93,9 @@ async def debug_chat(
 
     debug_payload = await pipeline.debug(
         session=session,
+        session_id=payload.session_id,
         question=payload.question,
         doc_types=payload.filters.doc_types,
+        enable_web_search=payload.filters.enable_web_search,
     )
     return success_response(debug_payload)

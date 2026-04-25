@@ -11,6 +11,7 @@ class ChatFilters(BaseSchema):
     """Optional filters for RAG retrieval."""
 
     doc_types: list[str] = Field(default_factory=list)
+    enable_web_search: bool | None = None
 
 
 class ChatAskRequest(BaseSchema):
@@ -32,6 +33,7 @@ class SourceItem(BaseSchema):
     section: str | None = None
     excerpt: str
     score: float | None = None
+    url: str | None = None
 
 
 class ChatMessage(BaseSchema):
@@ -72,4 +74,5 @@ class ChatDebugResponse(BaseSchema):
     fused_candidates: list[RetrievalCandidate]
     reranked_candidates: list[RetrievalCandidate]
     selected_sources: list[SourceItem]
-
+    memories: list[str] = Field(default_factory=list)
+    web_results: list[SourceItem] = Field(default_factory=list)

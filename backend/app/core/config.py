@@ -40,6 +40,25 @@ class Settings(BaseSettings):
     redis_url: str = "redis://127.0.0.1:6379/0"
     cache_ttl_seconds: int = 1800
 
+    memory_enabled: bool = True
+    memory_auto_save: bool = True
+    memory_min_content_length: int = 8
+    memory_max_items: int = 100
+    memory_relevance_limit: int = 5
+
+    web_search_enabled: bool = False
+    web_search_provider: str = "searxng"
+    web_search_endpoint: str = ""
+    web_search_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("WEB_SEARCH_API_KEY", "BING_SEARCH_API_KEY", "SERPER_API_KEY"),
+    )
+    web_search_timeout_seconds: float = 8.0
+    web_search_max_results: int = 5
+
+    mcp_enabled: bool = True
+    mcp_protocol_version: str = "2025-11-25"
+
     qwen_api_key: str = Field(
         default="",
         validation_alias=AliasChoices("QWEN_API_KEY", "OPENAI_API_KEY"),

@@ -427,3 +427,115 @@ AI 辅助填报负责把自然语言描述转成更规范的工单表单内容�
 - 数据层负责结构化数据与向量数据的分工存储
 
 因此后续如果继续扩展，建议也沿着这条边界增加功能：页面进入 `frontend/src/pages`，业务规则进入 `backend/app/services`，智能能力进入 `backend/app/rag` 或 `backend/app/services/assistants.py`。
+
+### 6.7 MCP、长期记忆与联网搜索扩展
+
+本次扩展把 MCP、记忆和联网搜索都接入到后端服务层，并复用智能问答链路。
+
+#### 长期记忆
+
+核心入口位于：
+
+- `backend/app/models/chat_history.py`
+- `backend/app/services/memory.py`
+- `backend/app/api/v1/memory.py`
+- `backend/alembic/versions/20260424_0002_chat_memories.py`
+
+实现方式如下：
+
+1. 新增 `chat_memories` 表，按 `session_id` 保存长期记忆内容、类型、元数据、使用次数和最近使用时间。
+2. `/api/v1/memory` 提供记忆写入、检索和删除接口。
+3. `/api/v1/chat/ask` 保存用户消息后，会调用 `maybe_save_user_memory()`，当用户明确表达“记住、以后、偏好、默认、称呼”等语义时自动沉淀记忆。
+4. `RAGPipeline.stream_answer()` 在生成回答前调用 `find_relevant_memories()`，把当前会话相关记忆渲染进 `qa_system.j2`。
+5. Prompt 中明确要求记忆只作为用户偏好和上下文线索，不能作为政策依据。
+
+相关配置：
+
+```env
+MEMORY_ENABLED=true
+MEMORY_AUTO_SAVE=true
+MEMORY_MIN_CONTENT_LENGTH=8
+MEMORY_MAX_ITEMS=100
+MEMORY_RELEVANCE_LIMIT=5
+```
+
+#### 联网搜索
+
+核心入口位于：
+
+- `backend/app/services/web_search.py`
+- `backend/app/api/v1/web_search.py`
+- `backend/app/rag/pipeline.py`
+- `frontend/src/pages/Chat/ChatPage.tsx`
+- `frontend/src/components/SourceCard/SourceCard.tsx`
+
+实现方式如下：
+
+1. `WebSearchService` 统一封装搜索供应商，目前支持 `searxng`、`bing`、`serper` 三种模式。
+2. `/api/v1/web-search` 提供独立搜索接口，便于调试和被 MCP 工具复用。
+3. `/api/v1/web-search/status?probe=true` 提供安全诊断接口，用于检查当前供应商、端点、API Key 是否配置，以及执行一次真实连通性测试。
+4. 聊天页新增“联网搜索”开关，请求体通过 `filters.enable_web_search` 传给后端。
+5. 后端仅在 `WEB_SEARCH_ENABLED=true` 且请求启用时执行联网搜索，默认关闭，避免离线部署误出网。
+6. 搜索结果会以 `[W1] [W2]` 编号进入 Prompt，并作为 `doc_type=web:<provider>` 的来源返回前端。
+7. 来源卡片支持 `url` 字段，前端可以直接打开网页来源。
+8. 若搜索供应商返回 `401 / 403 / 429` 或网络错误，聊天链路会记录 warning 并自动降级到本地 RAG，不再中断整轮问答。
+
+相关配置：
+
+```env
+WEB_SEARCH_ENABLED=false
+WEB_SEARCH_PROVIDER=searxng
+WEB_SEARCH_ENDPOINT=
+WEB_SEARCH_API_KEY=
+WEB_SEARCH_TIMEOUT_SECONDS=8
+WEB_SEARCH_MAX_RESULTS=5
+```
+
+Serper 配置示例：
+
+```env
+WEB_SEARCH_ENABLED=true
+WEB_SEARCH_PROVIDER=serper
+WEB_SEARCH_ENDPOINT=
+WEB_SEARCH_API_KEY=your-serper-api-key
+```
+
+诊断命令：
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://127.0.0.1:8000/api/v1/web-search/status?probe=true" `
+  -TimeoutSec 15 |
+  ConvertTo-Json -Depth 6
+```
+
+#### MCP 网关
+
+核心入口位于：
+
+- `backend/app/api/v1/mcp.py`
+- `backend/app/schemas/mcp.py`
+
+实现方式如下：
+
+1. 新增 `/api/v1/mcp` JSON-RPC 入口，支持 MCP 常用方法：`initialize`、`ping`、`tools/list`、`tools/call`。
+2. 新增 `/api/v1/mcp/tools` REST 入口，便于在浏览器或接口文档中查看当前暴露的 MCP 工具。
+3. MCP 工具复用系统能力，目前包括：
+   - `gridrag.memory.add`：为指定会话写入长期记忆
+   - `gridrag.memory.search`：检索指定会话的长期记忆
+   - `gridrag.web_search`：调用后端配置的联网搜索
+4. MCP 返回遵循 JSON-RPC 结构，工具结果使用 `content: [{ type: "text", text: "..." }]` 形式输出。
+
+相关配置：
+
+```env
+MCP_ENABLED=true
+MCP_PROTOCOL_VERSION=2025-11-25
+```
+
+数据库升级：
+
+```powershell
+cd backend
+alembic upgrade head
+```

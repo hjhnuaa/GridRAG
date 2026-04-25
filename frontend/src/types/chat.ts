@@ -1,5 +1,6 @@
 export interface ChatFilters {
   doc_types: string[];
+  enable_web_search?: boolean | null;
 }
 
 export interface ChatAskRequest {
@@ -17,6 +18,7 @@ export interface SourceItem {
   section?: string | null;
   excerpt: string;
   score?: number | null;
+  url?: string | null;
 }
 
 export interface ChatMessage {
@@ -51,6 +53,8 @@ export interface ChatDebugResponse {
   fused_candidates: RetrievalCandidate[];
   reranked_candidates: RetrievalCandidate[];
   selected_sources: SourceItem[];
+  memories: string[];
+  web_results: SourceItem[];
 }
 
 export interface LocalSessionSummary {
@@ -58,4 +62,3 @@ export interface LocalSessionSummary {
   title: string;
   updatedAt: string;
 }
-

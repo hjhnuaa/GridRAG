@@ -1,11 +1,12 @@
 import {
   BugOutlined,
   ClearOutlined,
+  GlobalOutlined,
   MessageOutlined,
   PlusOutlined,
   SendOutlined
 } from "@ant-design/icons";
-import { Button, Drawer, Empty, Input, List, Select, Space, Spin, Tabs, Tag, Typography, message } from "antd";
+import { Button, Drawer, Empty, Input, List, Select, Space, Spin, Switch, Tabs, Tag, Typography, message } from "antd";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
@@ -75,6 +76,7 @@ export function ChatPage(): JSX.Element {
   } = useChatStore();
   const [question, setQuestion] = useState("");
   const [docTypes, setDocTypes] = useState<string[]>(["policy", "manual"]);
+  const [enableWebSearch, setEnableWebSearch] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
 
   useEffect(() => {
@@ -121,7 +123,8 @@ export function ChatPage(): JSX.Element {
       session_id: currentSessionId,
       question: nextQuestion,
       filters: {
-        doc_types: docTypes
+        doc_types: docTypes,
+        enable_web_search: enableWebSearch
       }
     };
 
@@ -143,7 +146,7 @@ export function ChatPage(): JSX.Element {
     await debugMutation.mutateAsync({
       session_id: currentSessionId,
       question: lastUserQuestion,
-      filters: { doc_types: docTypes }
+      filters: { doc_types: docTypes, enable_web_search: enableWebSearch }
     });
     setDebugOpen(true);
   };
@@ -225,6 +228,13 @@ export function ChatPage(): JSX.Element {
                 <Button icon={<BugOutlined />} onClick={() => void openDebug()} loading={debugMutation.isPending}>
                   查看 RAG Debug
                 </Button>
+                <Switch
+                  checked={enableWebSearch}
+                  checkedChildren={<GlobalOutlined />}
+                  unCheckedChildren={<GlobalOutlined />}
+                  onChange={setEnableWebSearch}
+                />
+                <Typography.Text type="secondary">联网搜索</Typography.Text>
               </Space>
               {streaming ? (
                 <Button danger onClick={cancel}>

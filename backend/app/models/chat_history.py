@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import Index, String, Text
+from sqlalchemy import Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, UUIDPrimaryKeyMixin
@@ -39,3 +39,23 @@ class RetrievalLog(UUIDPrimaryKeyMixin, Base):
     top_chunks: Mapped[list[dict[str, Any]]] = mapped_column(nullable=False, default=list)
     is_grounded: Mapped[bool] = mapped_column(nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
+
+
+class ChatMemory(UUIDPrimaryKeyMixin, Base):
+    """Long-term memory attached to a chat session."""
+
+    __tablename__ = "chat_memories"
+    __table_args__ = (Index("ix_chat_memories_session_id_updated_at", "session_id", "updated_at"),)
+
+    session_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    memory_type: Mapped[str] = mapped_column(String(32), nullable=False, default="note")
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(nullable=False, default=dict)
+    usage_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_used_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False,
+    )
