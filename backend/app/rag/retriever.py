@@ -11,6 +11,7 @@ from typing import Any, Protocol, cast
 
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
+from pydantic import ConfigDict
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -231,15 +232,12 @@ class HybridRetriever:
 class LangChainHybridRetriever(BaseRetriever):
     """LangChain-compatible adapter over the existing hybrid retriever."""
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     retriever: HybridRetriever
     session: AsyncSession
     doc_types: list[str] | None = None
     top_k: int | None = None
-
-    class Config:
-        """Allow arbitrary runtime dependencies in the retriever wrapper."""
-
-        arbitrary_types_allowed = True
 
     def _get_relevant_documents(self, query: str, *, run_manager: Any = None) -> list[Document]:
         """Synchronous retrieval is not supported for this adapter."""
