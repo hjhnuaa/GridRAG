@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import AppError
+from app.core.security import mask_id_number, mask_phone
 from app.models.event import Event
 from app.models.resident import Resident, VisitRecord
 from app.schemas.common import PaginatedData, PaginationMeta
@@ -22,7 +23,6 @@ from app.schemas.resident import (
     VisitCreate,
     VisitRecordResponse,
 )
-from app.services.utils import mask_id_number, mask_phone
 
 
 async def create_resident(session: AsyncSession, payload: ResidentCreate) -> Resident:

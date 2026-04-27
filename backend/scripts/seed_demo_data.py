@@ -52,9 +52,9 @@ async def seed(data_dir: Path, dry_run: bool) -> dict[str, int]:
     from sqlalchemy import select
 
     from app.core.database import AsyncSessionFactory
+    from app.core.security import mask_id_number, mask_phone
     from app.models.event import Event
     from app.models.resident import Resident, VisitRecord
-    from app.services.utils import mask_id_number, mask_phone
 
     async with AsyncSessionFactory() as session:
         existing_residents = (

@@ -15,9 +15,9 @@ if str(BACKEND_ROOT) not in sys.path:
 
 # 允许脚本在未安装 backend 包时直接从 backend/scripts 目录运行。
 from app.core.database import AsyncSessionFactory  # noqa: E402
+from app.core.security import mask_id_number, mask_phone  # noqa: E402
 from app.models.event import Event  # noqa: E402
 from app.models.resident import Resident, VisitRecord  # noqa: E402
-from app.services.utils import mask_id_number, mask_phone  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:

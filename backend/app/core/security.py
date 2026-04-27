@@ -36,3 +36,21 @@ def decode_access_token(token: str) -> dict[str, Any]:
             detail="登录状态无效，请重新登录。",
         ) from exc
 
+
+def mask_id_number(value: str) -> str:
+    """Mask an ID number, keeping only the last four characters visible."""
+
+    cleaned = value.strip()
+    if len(cleaned) <= 4:
+        return cleaned
+    return "*" * (len(cleaned) - 4) + cleaned[-4:]
+
+
+def mask_phone(value: str) -> str:
+    """Mask a phone number while preserving the last four digits."""
+
+    cleaned = value.strip()
+    if len(cleaned) <= 4:
+        return cleaned
+    # 手机号只保留前三位和后四位，避免居民隐私在列表页和日志中直接暴露。
+    return f"{cleaned[:3]}****{cleaned[-4:]}"

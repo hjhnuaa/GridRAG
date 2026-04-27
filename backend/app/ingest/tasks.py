@@ -12,7 +12,7 @@ from app.core.config import get_settings
 from app.core.database import AsyncSessionFactory
 from app.core.logging import get_logger
 from app.ingest.embedder import get_embedding_service
-from app.ingest.parser import DocumentParser
+from app.ingest.loader import DocumentParser
 from app.models.document import DocumentChunk
 from app.rag.chunker import DocumentChunker
 from app.rag.store import get_chroma_store
