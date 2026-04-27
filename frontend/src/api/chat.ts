@@ -2,8 +2,7 @@ import { fetchEventSource } from "@microsoft/fetch-event-source";
 
 import type { ChatAskRequest, ChatDebugResponse, ChatMessage } from "../types/chat";
 import type { PaginatedData } from "../types/common";
-import { apiClient, unwrapResponse } from "./client";
-import { API_BASE_URL } from "./config";
+import { API_BASE_URL, apiClient, unwrapResponse } from "./client";
 
 export interface ChatStreamHandlers {
   onChunk: (content: string) => void;

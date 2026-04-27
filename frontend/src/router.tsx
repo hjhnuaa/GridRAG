@@ -5,27 +5,27 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout/AppLayout";
 
 const DashboardPage = lazy(async () => {
-  const module = await import("./pages/Dashboard");
+  const module = await import("./pages/Dashboard/DashboardPage");
   return { default: module.DashboardPage };
 });
 const ChatPage = lazy(async () => {
-  const module = await import("./pages/Chat");
+  const module = await import("./pages/Chat/ChatPage");
   return { default: module.ChatPage };
 });
 const EventsPage = lazy(async () => {
-  const module = await import("./pages/Events");
+  const module = await import("./pages/Events/EventsPage");
   return { default: module.EventsPage };
 });
 const KnowledgePage = lazy(async () => {
-  const module = await import("./pages/Knowledge");
+  const module = await import("./pages/Knowledge/KnowledgePage");
   return { default: module.KnowledgePage };
 });
 const ResidentsPage = lazy(async () => {
-  const module = await import("./pages/Residents");
+  const module = await import("./pages/Residents/ResidentsPage");
   return { default: module.ResidentsPage };
 });
 const ResidentDetailPage = lazy(async () => {
-  const module = await import("./pages/Residents");
+  const module = await import("./pages/Residents/ResidentDetailPage");
   return { default: module.ResidentDetailPage };
 });
 

@@ -3,11 +3,12 @@ import ReactDOM from "react-dom/client";
 import zhCN from "antd/locale/zh_CN";
 import { ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RouterProvider } from "react-router-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 import "antd/dist/reset.css";
 
-import App from "./App";
+import { router } from "./router";
 import "./styles/global.css";
 
 dayjs.locale("zh-cn");
@@ -37,7 +38,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       }}
     >
       <QueryClientProvider client={queryClient}>
-        <App />
+        <RouterProvider router={router} />
       </QueryClientProvider>
     </ConfigProvider>
   </RootMode>

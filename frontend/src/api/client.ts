@@ -1,7 +1,11 @@
 import axios from "axios";
 
 import type { ApiResponse } from "../types/common";
-import { API_BASE_URL } from "./config";
+
+const DEFAULT_API_BASE_URL = "http://localhost:8000/api/v1";
+
+// 普通请求和 SSE 流式问答共用同一个基础地址，避免默认值分散在多个文件里。
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL).replace(/\/+$/, "");
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
