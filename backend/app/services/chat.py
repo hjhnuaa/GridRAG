@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.chat_history import ChatHistory, RetrievalLog
-from app.schemas.chat import ChatMessage
+from app.models.chat_history import ChatHistory, ChatMemory, RetrievalLog
+from app.schemas.chat import ChatMessage, ChatSessionDeleteResponse
 from app.schemas.common import PaginatedData, PaginationMeta
 
 
@@ -51,6 +51,22 @@ async def list_chat_history(
             for item in messages
         ],
         meta=PaginationMeta(page=page, page_size=page_size, total=total),
+    )
+
+
+async def delete_chat_session(session: AsyncSession, session_id: str) -> ChatSessionDeleteResponse:
+    """Delete one chat session and its diagnostic data."""
+
+    # 会话删除需要同时清理调试日志和长期记忆，避免旧上下文在后续同名 session 中被误用。
+    memory_result = await session.execute(delete(ChatMemory).where(ChatMemory.session_id == session_id))
+    log_result = await session.execute(delete(RetrievalLog).where(RetrievalLog.session_id == session_id))
+    message_result = await session.execute(delete(ChatHistory).where(ChatHistory.session_id == session_id))
+    await session.commit()
+    return ChatSessionDeleteResponse(
+        session_id=session_id,
+        deleted_messages=int(message_result.rowcount or 0),
+        deleted_retrieval_logs=int(log_result.rowcount or 0),
+        deleted_memories=int(memory_result.rowcount or 0),
     )
 
 

@@ -16,7 +16,7 @@ from app.core.logging import get_logger
 from app.rag.pipeline import RAGPipeline
 from app.schemas.chat import ChatAskRequest
 from app.schemas.common import ApiResponse, success_response
-from app.services.chat import list_chat_history, save_chat_message
+from app.services.chat import delete_chat_session, list_chat_history, save_chat_message
 from app.services.memory import maybe_save_user_memory
 
 router = APIRouter(prefix="/chat", tags=["智能问答"])
@@ -80,6 +80,17 @@ async def history(
     """Return paginated chat history."""
 
     data = await list_chat_history(session, session_id=session_id, page=page, page_size=page_size)
+    return success_response(data)
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(
+    session_id: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> ApiResponse[object]:
+    """Delete a chat session from persisted history."""
+
+    data = await delete_chat_session(session, session_id)
     return success_response(data)
 
 

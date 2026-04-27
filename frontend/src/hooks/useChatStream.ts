@@ -5,6 +5,10 @@ import { startChatStream } from "../api/chat";
 import type { ChatAskRequest, ChatMessage } from "../types/chat";
 import { useChatStore } from "../stores/chatStore";
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
 export function useChatStream(sessionId: string): {
   streaming: boolean;
   sendQuestion: (payload: ChatAskRequest) => Promise<void>;
@@ -48,8 +52,12 @@ export function useChatStream(sessionId: string): {
         controller.signal
       );
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "问答失败。");
+      if (!isAbortError(error)) {
+        message.error(error instanceof Error ? error.message : "问答失败。");
+      }
       setStreaming(false);
+    } finally {
+      abortRef.current = null;
     }
   };
 
@@ -64,4 +72,3 @@ export function useChatStream(sessionId: string): {
     cancel
   };
 }
-

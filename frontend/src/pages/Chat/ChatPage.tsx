@@ -6,12 +6,12 @@ import {
   PlusOutlined,
   SendOutlined
 } from "@ant-design/icons";
-import { Button, Drawer, Empty, Input, List, Select, Space, Spin, Switch, Tabs, Tag, Typography, message } from "antd";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { Button, Drawer, Empty, Input, List, Popconfirm, Select, Space, Spin, Switch, Tabs, Tag, Typography, message } from "antd";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 
-import { fetchChatDebug, fetchChatHistory } from "../../api/chat";
+import { deleteChatSession, fetchChatDebug, fetchChatHistory } from "../../api/chat";
 import { ChatWindow } from "../../components/ChatWindow/ChatWindow";
 import { useChatStream } from "../../hooks/useChatStream";
 import { useChatStore } from "../../stores/chatStore";
@@ -72,12 +72,13 @@ export function ChatPage(): JSX.Element {
     hydrateHistory,
     setCurrentSession,
     upsertMessage,
-    clearCurrentView
+    deleteSession
   } = useChatStore();
   const [question, setQuestion] = useState("");
   const [docTypes, setDocTypes] = useState<string[]>(["policy", "manual"]);
   const [enableWebSearch, setEnableWebSearch] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!currentSessionId) {
@@ -104,10 +105,21 @@ export function ChatPage(): JSX.Element {
   const debugMutation = useMutation({
     mutationFn: (payload: ChatAskRequest) => fetchChatDebug(payload)
   });
+  const deleteSessionMutation = useMutation({
+    mutationFn: (sessionId: string) => deleteChatSession(sessionId),
+    onSuccess: (result) => {
+      const nextSessionId = deleteSession(result.session_id);
+      void queryClient.removeQueries({ queryKey: ["chat-history", result.session_id] });
+      if (nextSessionId) {
+        void queryClient.invalidateQueries({ queryKey: ["chat-history", nextSessionId] });
+      }
+      message.success("会话已删除。");
+    }
+  });
 
   const handleSend = async (): Promise<void> => {
     const nextQuestion = question.trim();
-    if (!nextQuestion || !currentSessionId) {
+    if (!nextQuestion || !currentSessionId || streaming) {
       return;
     }
 
@@ -156,6 +168,14 @@ export function ChatPage(): JSX.Element {
     setCurrentSession(sessionId);
   };
 
+  const handleDeleteSession = async (): Promise<void> => {
+    if (!currentSessionId) {
+      return;
+    }
+    cancel();
+    await deleteSessionMutation.mutateAsync(currentSessionId);
+  };
+
   return (
     <div className="page-shell chat-page-shell">
       <section className="page-hero">
@@ -172,9 +192,18 @@ export function ChatPage(): JSX.Element {
             <Button type="primary" icon={<PlusOutlined />} block onClick={handleCreateSession}>
               新建会话
             </Button>
-            <Button icon={<ClearOutlined />} block onClick={() => currentSessionId && clearCurrentView(currentSessionId)}>
-              清空当前视图
-            </Button>
+            <Popconfirm
+              title="删除当前会话？"
+              description="会同时删除数据库中的消息、检索日志和会话记忆。"
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => void handleDeleteSession()}
+            >
+              <Button icon={<ClearOutlined />} danger block loading={deleteSessionMutation.isPending}>
+                删除当前会话
+              </Button>
+            </Popconfirm>
           </div>
 
           <div>
@@ -262,14 +291,20 @@ export function ChatPage(): JSX.Element {
               style={{ resize: "none" }}
               placeholder="例如：低保申请需要哪些材料？若楼道照明损坏一周，网格员该如何处理？"
               onKeyDown={(event) => {
-                if (event.ctrlKey && event.key === "Enter") {
+                if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
                   void handleSend();
                 }
               }}
             />
             <div className="chat-composer-footer">
-              <Typography.Text type="secondary">按 Ctrl + Enter 发送，支持流式返回。</Typography.Text>
-              <Button type="primary" icon={<SendOutlined />} loading={streaming} onClick={() => void handleSend()}>
+              <Typography.Text type="secondary">按 Ctrl / Cmd + Enter 发送，支持流式返回。</Typography.Text>
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                loading={streaming}
+                disabled={!question.trim() || !currentSessionId}
+                onClick={() => void handleSend()}
+              >
                 发送问题
               </Button>
             </div>

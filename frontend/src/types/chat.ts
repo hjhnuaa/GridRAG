@@ -57,6 +57,13 @@ export interface ChatDebugResponse {
   web_results: SourceItem[];
 }
 
+export interface ChatSessionDeleteResponse {
+  session_id: string;
+  deleted_messages: number;
+  deleted_retrieval_logs: number;
+  deleted_memories: number;
+}
+
 export interface LocalSessionSummary {
   id: string;
   title: string;

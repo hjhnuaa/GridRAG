@@ -47,6 +47,15 @@ class ChatMessage(BaseSchema):
     created_at: str
 
 
+class ChatSessionDeleteResponse(BaseSchema):
+    """Delete result for a chat session."""
+
+    session_id: str
+    deleted_messages: int
+    deleted_retrieval_logs: int
+    deleted_memories: int
+
+
 class RetrievalCandidate(BaseSchema):
     """A retrieval candidate for debug purposes."""
 

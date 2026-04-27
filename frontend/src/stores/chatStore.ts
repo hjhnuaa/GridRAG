@@ -14,6 +14,7 @@ interface ChatState {
   patchAssistantMessage: (sessionId: string, messageId: string, content: string) => void;
   attachSources: (sessionId: string, messageId: string, sources: ChatMessage["sources"]) => void;
   clearCurrentView: (sessionId: string) => void;
+  deleteSession: (sessionId: string) => string;
 }
 
 function createSessionTitle(messages: ChatMessage[]): string {
@@ -105,7 +106,21 @@ export const useChatStore = create<ChatState>()(
             ...state.messagesBySession,
             [sessionId]: []
           }
-        }))
+        })),
+      deleteSession: (sessionId) => {
+        const state = get();
+        const nextSessions = state.sessions.filter((item) => item.id !== sessionId);
+        const { [sessionId]: _removed, ...nextMessagesBySession } = state.messagesBySession;
+        const nextCurrentSessionId =
+          state.currentSessionId === sessionId ? nextSessions[0]?.id ?? "" : state.currentSessionId;
+
+        set({
+          currentSessionId: nextCurrentSessionId,
+          sessions: nextSessions,
+          messagesBySession: nextMessagesBySession
+        });
+        return nextCurrentSessionId;
+      }
     }),
     {
       name: "gridrag-chat-store",
@@ -118,4 +133,3 @@ export const useChatStore = create<ChatState>()(
     }
   )
 );
-

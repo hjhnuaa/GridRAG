@@ -1,6 +1,6 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 
-import type { ChatAskRequest, ChatDebugResponse, ChatMessage } from "../types/chat";
+import type { ChatAskRequest, ChatDebugResponse, ChatMessage, ChatSessionDeleteResponse } from "../types/chat";
 import type { PaginatedData } from "../types/common";
 import { API_BASE_URL, apiClient, unwrapResponse } from "./client";
 
@@ -9,6 +9,10 @@ export interface ChatStreamHandlers {
   onSources: (sources: ChatMessage["sources"]) => void;
   onError: (message: string) => void;
   onDone: () => void;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
 }
 
 export async function startChatStream(
@@ -48,7 +52,9 @@ export async function startChatStream(
       }
     },
     onerror(error) {
-      handlers.onError(error instanceof Error ? error.message : "流式连接中断。");
+      if (!isAbortError(error)) {
+        handlers.onError(error instanceof Error ? error.message : "流式连接中断。");
+      }
       throw error;
     }
   });
@@ -67,4 +73,8 @@ export async function fetchChatHistory(sessionId: string): Promise<PaginatedData
 
 export async function fetchChatDebug(payload: ChatAskRequest): Promise<ChatDebugResponse> {
   return unwrapResponse(apiClient.post("/chat/debug", payload));
+}
+
+export async function deleteChatSession(sessionId: string): Promise<ChatSessionDeleteResponse> {
+  return unwrapResponse(apiClient.delete(`/chat/sessions/${sessionId}`));
 }
