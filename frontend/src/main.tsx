@@ -30,10 +30,25 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       locale={zhCN}
       theme={{
         token: {
-          colorPrimary: "#af3f2d",
-          colorInfo: "#af3f2d",
-          borderRadius: 18,
+          colorPrimary: "#216f6a",
+          colorInfo: "#216f6a",
+          colorWarning: "#b8842f",
+          colorError: "#a84735",
+          borderRadius: 14,
           fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif'
+        },
+        components: {
+          Button: {
+            controlHeight: 38,
+            primaryShadow: "0 10px 24px rgba(33, 111, 106, 0.18)"
+          },
+          Table: {
+            headerBg: "rgba(33, 111, 106, 0.08)",
+            rowHoverBg: "rgba(33, 111, 106, 0.06)"
+          },
+          Tag: {
+            borderRadiusSM: 999
+          }
         }
       }}
     >

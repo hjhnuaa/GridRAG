@@ -69,7 +69,7 @@ export function ResidentDetailPage(): JSX.Element {
 
       <Row gutter={[18, 18]}>
         <Col xs={24} xl={16}>
-          <Card className="glass-card" style={{ borderRadius: 24 }}>
+          <Card className="glass-card" style={{ borderRadius: 16 }}>
             <Descriptions
               title="基础信息"
               column={2}
@@ -86,7 +86,7 @@ export function ResidentDetailPage(): JSX.Element {
 
           <Card
             className="glass-card"
-            style={{ borderRadius: 24, marginTop: 18 }}
+            style={{ borderRadius: 16, marginTop: 18 }}
             title="走访记录时间轴"
             extra={
               <Button type="primary" icon={<PlusOutlined />} onClick={() => setVisitModalOpen(true)}>
@@ -111,7 +111,7 @@ export function ResidentDetailPage(): JSX.Element {
         <Col xs={24} xl={8}>
           <Card
             className="glass-card"
-            style={{ borderRadius: 24 }}
+            style={{ borderRadius: 16 }}
             title="AI 走访建议"
             extra={
               <Button
@@ -141,7 +141,7 @@ export function ResidentDetailPage(): JSX.Element {
             )}
           </Card>
 
-          <Card className="glass-card" style={{ borderRadius: 24, marginTop: 18 }} title="关联工单">
+          <Card className="glass-card" style={{ borderRadius: 16, marginTop: 18 }} title="关联工单">
             <Table
               rowKey="id"
               dataSource={resident.related_events}

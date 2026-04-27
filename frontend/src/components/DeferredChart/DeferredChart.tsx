@@ -63,7 +63,7 @@ export const DeferredChart = memo(function DeferredChart({
     <Skeleton.Node
       active
       className="chart-skeleton"
-      style={{ width: "100%", height, borderRadius: 20 }}
+      style={{ width: "100%", height, borderRadius: 16 }}
     />
   );
 

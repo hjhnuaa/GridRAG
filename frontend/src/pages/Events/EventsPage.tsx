@@ -247,7 +247,7 @@ export function EventsPage(): JSX.Element {
             <Col xs={24} md={12} xl={8} key={item.id}>
               <Card
                 className="glass-card"
-                style={{ borderRadius: 24 }}
+                style={{ borderRadius: 16 }}
                 actions={[
                   <Button
                     key="close"

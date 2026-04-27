@@ -142,6 +142,7 @@ export function AppLayout(): JSX.Element {
             <div className="layout-header-main">
               <Button
                 type="text"
+                aria-label={collapsed ? "展开导航" : "收起导航"}
                 className="layout-toggle-btn"
                 icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                 onClick={() => setCollapsed(!collapsed)}
@@ -168,9 +169,10 @@ export function AppLayout(): JSX.Element {
         </Header>
         <Content style={{ paddingTop: 18 }}>
           <motion.div
+            key={location.pathname}
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, ease: "easeOut" }}
+            transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
           >
             <Outlet />
           </motion.div>

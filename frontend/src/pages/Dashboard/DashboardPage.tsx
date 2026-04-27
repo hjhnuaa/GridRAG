@@ -19,9 +19,9 @@ import type { DashboardStatsResponse } from "../../types/stats";
 import { categoryLabel, docTypeLabel, statusLabel } from "../../utils/presenters";
 
 const DASHBOARD_CACHE_MS = 5 * 60 * 1000;
-const CHART_COLORS = ["#2f7a78", "#b85b38", "#c7932d", "#4b6f9f", "#7a5b48"];
-const AXIS_COLOR = "rgba(34, 23, 16, 0.58)";
-const GRID_LINE = "rgba(108, 73, 49, 0.14)";
+const CHART_COLORS = ["#216f6a", "#a84735", "#b8842f", "#3f6384", "#6e6258"];
+const AXIS_COLOR = "rgba(23, 33, 31, 0.58)";
+const GRID_LINE = "rgba(35, 75, 73, 0.14)";
 
 type SliceWithRatio = {
   name: string;
@@ -170,7 +170,7 @@ function buildPieOption(
           borderWidth: 3
         },
         label: {
-          color: "rgba(34, 23, 16, 0.72)",
+          color: "rgba(23, 33, 31, 0.72)",
           formatter: "{b}\n{d}%"
         },
         data: data.map((item) => ({
@@ -187,7 +187,7 @@ function buildDurationOption(data: DashboardStatsResponse["average_resolution_ho
   const hours = data.map((item) => Number(item.hours.toFixed(1)));
 
   return {
-    color: ["#2f7a78", "#b85b38"],
+    color: ["#216f6a", "#a84735"],
     tooltip: {
       trigger: "axis" as const,
       backgroundColor: "rgba(35, 24, 17, 0.92)",
@@ -238,7 +238,7 @@ function buildKnowledgeOption(data: DashboardStatsResponse["knowledge_cards"]): 
   const sorted = [...data].sort((left, right) => Number(right.value) - Number(left.value));
 
   return {
-    color: ["#c7932d"],
+    color: ["#b8842f"],
     tooltip: {
       trigger: "axis" as const,
       axisPointer: { type: "shadow" as const },
@@ -271,7 +271,7 @@ function buildKnowledgeOption(data: DashboardStatsResponse["knowledge_cards"]): 
         label: {
           show: true,
           position: "right" as const,
-          color: "rgba(34, 23, 16, 0.72)"
+          color: "rgba(23, 33, 31, 0.72)"
         },
         data: sorted.map((item) => Number(item.value))
       }

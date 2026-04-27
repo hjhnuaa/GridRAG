@@ -76,8 +76,8 @@ export function ChatWindow({ messages }: ChatWindowProps): JSX.Element {
                       style={{
                         flexShrink: 0,
                         background: isAssistant
-                          ? "linear-gradient(135deg, rgba(175, 63, 45, 0.92), rgba(183, 139, 60, 0.82))"
-                          : "rgba(34, 23, 16, 0.82)"
+                          ? "linear-gradient(135deg, rgba(33, 111, 106, 0.92), rgba(168, 71, 53, 0.82))"
+                          : "rgba(23, 33, 31, 0.82)"
                       }}
                     />
                     <div className="chat-message-content">

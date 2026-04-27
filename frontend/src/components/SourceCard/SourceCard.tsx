@@ -17,9 +17,9 @@ export function SourceCard({ sources }: SourceCardProps): JSX.Element | null {
       bordered={false}
       style={{
         marginTop: 14,
-        border: "1px solid rgba(108, 73, 49, 0.18)",
-        borderRadius: 18,
-        background: "rgba(255, 250, 244, 0.82)"
+        border: "1px solid rgba(35, 75, 73, 0.18)",
+        borderRadius: 16,
+        background: "rgba(246, 250, 244, 0.82)"
       }}
       items={[
         {
@@ -38,7 +38,7 @@ export function SourceCard({ sources }: SourceCardProps): JSX.Element | null {
                   key={`${source.chunk_id ?? source.url ?? source.doc_name}-${source.page ?? "na"}`}
                   style={{
                     padding: 14,
-                    border: "1px dashed rgba(108, 73, 49, 0.22)",
+                    border: "1px dashed rgba(35, 75, 73, 0.22)",
                     borderRadius: 16,
                     background: "rgba(255, 255, 255, 0.54)"
                   }}
@@ -63,7 +63,7 @@ export function SourceCard({ sources }: SourceCardProps): JSX.Element | null {
                   ) : null}
                   <Typography.Paragraph
                     ellipsis={{ rows: 3, expandable: true, symbol: "展开片段" }}
-                    style={{ margin: "12px 0 0", color: "rgba(34, 23, 16, 0.72)" }}
+                    style={{ margin: "12px 0 0", color: "rgba(23, 33, 31, 0.72)" }}
                   >
                     {source.excerpt}
                   </Typography.Paragraph>

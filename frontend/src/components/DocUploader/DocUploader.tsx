@@ -36,17 +36,16 @@ export function DocUploader({ docType, onUploaded }: DocUploaderProps): JSX.Elem
         return valid || Upload.LIST_IGNORE;
       }}
       style={{
-        borderRadius: 24,
-        border: "1px dashed rgba(108, 73, 49, 0.28)",
-        background: "rgba(255, 249, 240, 0.72)"
+        borderRadius: 16,
+        border: "1px dashed rgba(35, 75, 73, 0.28)",
+        background: "rgba(244, 249, 243, 0.72)"
       }}
     >
       <p className="ant-upload-drag-icon">
-        <InboxOutlined style={{ color: "#af3f2d" }} />
+        <InboxOutlined style={{ color: "#216f6a" }} />
       </p>
       <p className="ant-upload-text">拖拽文档到这里，或点击上传</p>
       <p className="ant-upload-hint">上传后系统会自动解析、分块、向量化并建立混合检索索引。</p>
     </Upload.Dragger>
   );
 }
-
