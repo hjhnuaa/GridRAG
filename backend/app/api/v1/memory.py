@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db_session
 from app.schemas.common import ApiResponse, success_response
-from app.schemas.memory import MemoryCreateRequest, MemoryItem, MemorySearchResponse
-from app.services.memory import delete_memory, list_memories, save_memory, to_memory_item
+from app.schemas.memory import MemoryCreateRequest, MemoryDeleteResponse, MemoryItem, MemorySearchResponse
+from app.services.memory import delete_memory, delete_session_memories, list_memories, save_memory, to_memory_item
 
 router = APIRouter(prefix="/memory", tags=["长期记忆"])
 
@@ -41,6 +41,17 @@ async def get_memories(
 
     memories = await list_memories(session=session, session_id=session_id, query=query, limit=limit)
     return success_response(MemorySearchResponse(items=[to_memory_item(item) for item in memories]))
+
+
+@router.delete("/sessions/{session_id}")
+async def clear_session_memories(
+    session_id: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> ApiResponse[MemoryDeleteResponse]:
+    """Delete all memory items for a chat session."""
+
+    data = await delete_session_memories(session=session, session_id=session_id)
+    return success_response(data)
 
 
 @router.delete("/{memory_id}")

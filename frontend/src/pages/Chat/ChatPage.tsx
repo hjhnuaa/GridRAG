@@ -1,6 +1,8 @@
 import {
   BugOutlined,
   ClearOutlined,
+  DeleteOutlined,
+  DatabaseOutlined,
   GlobalOutlined,
   MessageOutlined,
   PlusOutlined,
@@ -11,7 +13,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 
-import { deleteChatSession, fetchChatDebug, fetchChatHistory } from "../../api/chat";
+import {
+  clearSessionMemories,
+  createMemory,
+  deleteChatSession,
+  deleteMemory,
+  fetchChatDebug,
+  fetchChatHistory,
+  fetchMemories
+} from "../../api/chat";
 import { ChatWindow } from "../../components/ChatWindow/ChatWindow";
 import { useChatStream } from "../../hooks/useChatStream";
 import { useChatStore } from "../../stores/chatStore";
@@ -78,6 +88,9 @@ export function ChatPage(): JSX.Element {
   const [docTypes, setDocTypes] = useState<string[]>(["policy", "manual"]);
   const [enableWebSearch, setEnableWebSearch] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  const [memoryQuery, setMemoryQuery] = useState("");
+  const [memoryContent, setMemoryContent] = useState("");
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -104,6 +117,33 @@ export function ChatPage(): JSX.Element {
   const { sendQuestion, streaming, cancel } = useChatStream(currentSessionId);
   const debugMutation = useMutation({
     mutationFn: (payload: ChatAskRequest) => fetchChatDebug(payload)
+  });
+  const memoryQueryResult = useQuery({
+    queryKey: ["memories", currentSessionId, memoryQuery],
+    queryFn: () => fetchMemories(currentSessionId, memoryQuery),
+    enabled: Boolean(currentSessionId) && memoryOpen
+  });
+  const createMemoryMutation = useMutation({
+    mutationFn: (content: string) => createMemory(currentSessionId, content),
+    onSuccess: () => {
+      setMemoryContent("");
+      void queryClient.invalidateQueries({ queryKey: ["memories", currentSessionId] });
+      message.success("记忆已保存。");
+    }
+  });
+  const deleteMemoryMutation = useMutation({
+    mutationFn: (memoryId: string) => deleteMemory(memoryId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["memories", currentSessionId] });
+      message.success("记忆已删除。");
+    }
+  });
+  const clearMemoriesMutation = useMutation({
+    mutationFn: (sessionId: string) => clearSessionMemories(sessionId),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ["memories", result.session_id] });
+      message.success(`已清空 ${result.deleted} 条记忆。`);
+    }
   });
   const deleteSessionMutation = useMutation({
     mutationFn: (sessionId: string) => deleteChatSession(sessionId),
@@ -174,6 +214,21 @@ export function ChatPage(): JSX.Element {
     }
     cancel();
     await deleteSessionMutation.mutateAsync(currentSessionId);
+  };
+
+  const handleCreateMemory = async (): Promise<void> => {
+    const content = memoryContent.trim();
+    if (!content || !currentSessionId) {
+      return;
+    }
+    await createMemoryMutation.mutateAsync(content);
+  };
+
+  const handleClearMemories = async (): Promise<void> => {
+    if (!currentSessionId) {
+      return;
+    }
+    await clearMemoriesMutation.mutateAsync(currentSessionId);
   };
 
   return (
@@ -256,6 +311,9 @@ export function ChatPage(): JSX.Element {
                 />
                 <Button icon={<BugOutlined />} onClick={() => void openDebug()} loading={debugMutation.isPending}>
                   查看 RAG Debug
+                </Button>
+                <Button icon={<DatabaseOutlined />} onClick={() => setMemoryOpen(true)}>
+                  记忆管理
                 </Button>
                 <Switch
                   checked={enableWebSearch}
@@ -366,6 +424,90 @@ export function ChatPage(): JSX.Element {
         ) : (
           <Empty description="暂无调试结果" />
         )}
+      </Drawer>
+
+      <Drawer width={640} title="当前会话记忆" open={memoryOpen} onClose={() => setMemoryOpen(false)}>
+        <Space direction="vertical" size={16} style={{ width: "100%" }}>
+          <div className="glass-card" style={{ padding: 16 }}>
+            <Space direction="vertical" size={12} style={{ width: "100%" }}>
+              <Input.Search
+                allowClear
+                value={memoryQuery}
+                placeholder="搜索当前会话记忆"
+                onChange={(event) => setMemoryQuery(event.target.value)}
+              />
+              <Input.TextArea
+                value={memoryContent}
+                autoSize={{ minRows: 3, maxRows: 6 }}
+                placeholder="手动写入一条长期记忆，例如：以后默认优先按政策文件回答。"
+                onChange={(event) => setMemoryContent(event.target.value)}
+              />
+              <Space wrap>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  loading={createMemoryMutation.isPending}
+                  disabled={!memoryContent.trim() || !currentSessionId}
+                  onClick={() => void handleCreateMemory()}
+                >
+                  保存记忆
+                </Button>
+                <Popconfirm
+                  title="清空当前会话记忆？"
+                  okText="清空"
+                  cancelText="取消"
+                  okButtonProps={{ danger: true }}
+                  onConfirm={() => void handleClearMemories()}
+                >
+                  <Button danger icon={<ClearOutlined />} loading={clearMemoriesMutation.isPending}>
+                    清空记忆
+                  </Button>
+                </Popconfirm>
+              </Space>
+            </Space>
+          </div>
+
+          {memoryQueryResult.isLoading ? (
+            <Spin />
+          ) : memoryQueryResult.data?.items.length ? (
+            <List
+              dataSource={memoryQueryResult.data.items}
+              renderItem={(item) => (
+                <List.Item
+                  actions={[
+                    <Popconfirm
+                      key="delete"
+                      title="删除这条记忆？"
+                      okText="删除"
+                      cancelText="取消"
+                      okButtonProps={{ danger: true }}
+                      onConfirm={() => void deleteMemoryMutation.mutateAsync(item.id)}
+                    >
+                      <Button danger size="small" icon={<DeleteOutlined />} loading={deleteMemoryMutation.isPending} />
+                    </Popconfirm>
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={
+                      <Space wrap>
+                        <Tag color={item.memory_type === "auto" ? "blue" : "volcano"}>{item.memory_type}</Tag>
+                        <Typography.Text type="secondary">使用 {item.usage_count} 次</Typography.Text>
+                      </Space>
+                    }
+                    description={
+                      <Space direction="vertical" size={4}>
+                        <Typography.Text>{item.content}</Typography.Text>
+                        <Typography.Text type="secondary">更新于 {formatDateTime(item.updated_at)}</Typography.Text>
+                      </Space>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          ) : (
+            <Empty description={memoryQuery ? "没有匹配的记忆" : "当前会话暂无记忆"} />
+          )}
+        </Space>
       </Drawer>
     </div>
   );

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.models.chat_history import ChatMemory
-from app.schemas.memory import MemoryItem
+from app.schemas.memory import MemoryDeleteResponse, MemoryItem
 
 MEMORY_TRIGGERS = (
     "记住",
@@ -151,20 +151,21 @@ async def list_memories(
 ) -> list[ChatMemory]:
     """List or search memories for a session."""
 
+    settings = get_settings()
+    effective_limit = max(1, min(limit or settings.memory_max_items, settings.memory_max_items))
     if query.strip():
         return await find_relevant_memories(
             session,
             session_id=session_id,
             query=query,
-            limit=limit,
+            limit=effective_limit,
             mark_used=False,
         )
-    settings = get_settings()
     result = await session.execute(
         select(ChatMemory)
         .where(ChatMemory.session_id == session_id)
         .order_by(ChatMemory.updated_at.desc())
-        .limit(limit or settings.memory_max_items)
+        .limit(effective_limit)
     )
     return list(result.scalars().all())
 
@@ -175,6 +176,14 @@ async def delete_memory(session: AsyncSession, memory_id: str) -> bool:
     result = await session.execute(delete(ChatMemory).where(ChatMemory.id == memory_id))
     await session.commit()
     return bool(result.rowcount)
+
+
+async def delete_session_memories(session: AsyncSession, session_id: str) -> MemoryDeleteResponse:
+    """Delete all memories in one chat session."""
+
+    result = await session.execute(delete(ChatMemory).where(ChatMemory.session_id == session_id))
+    await session.commit()
+    return MemoryDeleteResponse(session_id=session_id, deleted=int(result.rowcount or 0))
 
 
 def render_memory_context(memories: list[ChatMemory]) -> list[str]:

@@ -36,3 +36,10 @@ class MemorySearchResponse(BaseSchema):
     """Search response for session memories."""
 
     items: list[MemoryItem]
+
+
+class MemoryDeleteResponse(BaseSchema):
+    """Delete result for session memories."""
+
+    session_id: str
+    deleted: int

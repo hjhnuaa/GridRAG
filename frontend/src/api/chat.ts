@@ -1,6 +1,14 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 
-import type { ChatAskRequest, ChatDebugResponse, ChatMessage, ChatSessionDeleteResponse } from "../types/chat";
+import type {
+  ChatAskRequest,
+  ChatDebugResponse,
+  ChatMessage,
+  ChatSessionDeleteResponse,
+  MemoryDeleteResponse,
+  MemoryItem,
+  MemorySearchResponse
+} from "../types/chat";
 import type { PaginatedData } from "../types/common";
 import { API_BASE_URL, apiClient, unwrapResponse } from "./client";
 
@@ -77,4 +85,34 @@ export async function fetchChatDebug(payload: ChatAskRequest): Promise<ChatDebug
 
 export async function deleteChatSession(sessionId: string): Promise<ChatSessionDeleteResponse> {
   return unwrapResponse(apiClient.delete(`/chat/sessions/${sessionId}`));
+}
+
+export async function fetchMemories(sessionId: string, query = ""): Promise<MemorySearchResponse> {
+  return unwrapResponse(
+    apiClient.get(`/memory/${sessionId}`, {
+      params: {
+        query,
+        limit: 50
+      }
+    })
+  );
+}
+
+export async function createMemory(sessionId: string, content: string): Promise<MemoryItem> {
+  return unwrapResponse(
+    apiClient.post("/memory", {
+      session_id: sessionId,
+      content,
+      memory_type: "manual",
+      metadata: { source: "manual" }
+    })
+  );
+}
+
+export async function deleteMemory(memoryId: string): Promise<{ deleted: boolean }> {
+  return unwrapResponse(apiClient.delete(`/memory/${memoryId}`));
+}
+
+export async function clearSessionMemories(sessionId: string): Promise<MemoryDeleteResponse> {
+  return unwrapResponse(apiClient.delete(`/memory/sessions/${sessionId}`));
 }
