@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "20260418_0001"
 down_revision = None
@@ -61,7 +62,12 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["resident_id"], ["residents.id"], name=op.f("fk_visit_records_resident_id_residents")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_visit_records")),
     )
-    op.create_index("ix_visit_records_resident_id_created_at", "visit_records", ["resident_id", "created_at"], unique=False)
+    op.create_index(
+        "ix_visit_records_resident_id_created_at",
+        "visit_records",
+        ["resident_id", "created_at"],
+        unique=False,
+    )
 
     op.create_table(
         "events",
@@ -83,7 +89,12 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_events")),
     )
     op.create_index("ix_events_resident_id", "events", ["resident_id"], unique=False)
-    op.create_index("ix_events_status_category_created_at", "events", ["status", "category", "created_at"], unique=False)
+    op.create_index(
+        "ix_events_status_category_created_at",
+        "events",
+        ["status", "category", "created_at"],
+        unique=False,
+    )
 
     op.create_table(
         "document_chunks",
@@ -98,7 +109,11 @@ def upgrade() -> None:
         sa.Column("embedding_model", sa.String(length=128), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("id", sa.String(length=36), nullable=False),
-        sa.ForeignKeyConstraint(["document_id"], ["documents.id"], name=op.f("fk_document_chunks_document_id_documents")),
+        sa.ForeignKeyConstraint(
+            ["document_id"],
+            ["documents.id"],
+            name=op.f("fk_document_chunks_document_id_documents"),
+        ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_document_chunks")),
     )
     op.create_index("ix_document_chunks_document_id", "document_chunks", ["document_id"], unique=False)
@@ -114,7 +129,12 @@ def upgrade() -> None:
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_chat_histories")),
     )
-    op.create_index("ix_chat_histories_session_id_created_at", "chat_histories", ["session_id", "created_at"], unique=False)
+    op.create_index(
+        "ix_chat_histories_session_id_created_at",
+        "chat_histories",
+        ["session_id", "created_at"],
+        unique=False,
+    )
 
     op.create_table(
         "retrieval_logs",
@@ -130,7 +150,12 @@ def upgrade() -> None:
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_retrieval_logs")),
     )
-    op.create_index("ix_retrieval_logs_session_id_created_at", "retrieval_logs", ["session_id", "created_at"], unique=False)
+    op.create_index(
+        "ix_retrieval_logs_session_id_created_at",
+        "retrieval_logs",
+        ["session_id", "created_at"],
+        unique=False,
+    )
 
 
 def downgrade() -> None:
@@ -153,4 +178,3 @@ def downgrade() -> None:
     op.drop_table("documents")
     op.drop_index("ix_residents_name_address", table_name="residents")
     op.drop_table("residents")
-

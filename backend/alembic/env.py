@@ -4,15 +4,12 @@ from __future__ import annotations
 
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from alembic import context
+from app import models as _models  # noqa: F401
 from app.core.config import get_settings
 from app.models.base import Base
-from app.models.chat_history import ChatHistory, ChatMemory, RetrievalLog
-from app.models.document import Document, DocumentChunk
-from app.models.event import Event
-from app.models.resident import Resident, VisitRecord
 
 config = context.config
 settings = get_settings()
@@ -21,6 +18,7 @@ config.set_main_option("sqlalchemy.url", settings.sync_database_url)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# Alembic 自动迁移依赖模型模块完成导入，否则 Base.metadata 可能缺少表定义。
 target_metadata = Base.metadata
 
 

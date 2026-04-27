@@ -3,6 +3,7 @@ import { fetchEventSource } from "@microsoft/fetch-event-source";
 import type { ChatAskRequest, ChatDebugResponse, ChatMessage } from "../types/chat";
 import type { PaginatedData } from "../types/common";
 import { apiClient, unwrapResponse } from "./client";
+import { API_BASE_URL } from "./config";
 
 export interface ChatStreamHandlers {
   onChunk: (content: string) => void;
@@ -16,7 +17,7 @@ export async function startChatStream(
   handlers: ChatStreamHandlers,
   signal: AbortSignal
 ): Promise<void> {
-  await fetchEventSource(`${import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1"}/chat/ask`, {
+  await fetchEventSource(`${API_BASE_URL}/chat/ask`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -68,4 +69,3 @@ export async function fetchChatHistory(sessionId: string): Promise<PaginatedData
 export async function fetchChatDebug(payload: ChatAskRequest): Promise<ChatDebugResponse> {
   return unwrapResponse(apiClient.post("/chat/debug", payload));
 }
-

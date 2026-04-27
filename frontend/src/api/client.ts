@@ -1,9 +1,10 @@
 import axios from "axios";
 
 import type { ApiResponse } from "../types/common";
+import { API_BASE_URL } from "./config";
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1",
+  baseURL: API_BASE_URL,
   timeout: 30000
 });
 
@@ -21,4 +22,3 @@ export async function unwrapResponse<T>(request: Promise<{ data: ApiResponse<T> 
 }
 
 export { apiClient };
-

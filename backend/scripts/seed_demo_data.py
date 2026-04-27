@@ -96,7 +96,9 @@ async def seed(data_dir: Path, dry_run: bool) -> dict[str, int]:
             event_key = (row["title"], row["address"], created_at.isoformat())
             if event_key in existing_event_keys:
                 continue
-            resident = resident_map.get((row["resident_name"], row["resident_address"])) if row["resident_name"] else None
+            resident = (
+                resident_map.get((row["resident_name"], row["resident_address"])) if row["resident_name"] else None
+            )
             event = Event(
                 title=row["title"],
                 description=row["description"],
@@ -121,7 +123,9 @@ async def seed(data_dir: Path, dry_run: bool) -> dict[str, int]:
         existing_visits = (
             await session.execute(select(VisitRecord))
         ).scalars().all()
-        existing_visit_keys = {(item.resident_id, item.visitor_name, item.created_at.isoformat()) for item in existing_visits}
+        existing_visit_keys = {
+            (item.resident_id, item.visitor_name, item.created_at.isoformat()) for item in existing_visits
+        }
 
         added_visits = 0
         updated_resident_counters = 0

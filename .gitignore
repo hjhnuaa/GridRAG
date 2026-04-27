@@ -35,6 +35,8 @@ dist/
 build/
 .vite/
 *.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
 yarn-debug.log*
 yarn-error.log*
 npm-debug.log*
@@ -68,3 +70,4 @@ data/
 # Optional local databases
 *.sqlite3
 *.db
+dump.rdb

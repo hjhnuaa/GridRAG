@@ -188,6 +188,7 @@ class HybridRetriever:
         merged: dict[str, Chunk] = {}
         scores: defaultdict[str, float] = defaultdict(float)
 
+        # RRF 只关心候选在各路召回中的名次，能降低不同评分尺度带来的偏差。
         for rank, chunk in enumerate(dense, start=1):
             merged.setdefault(chunk.id, chunk)
             scores[chunk.id] += 1 / (k + rank)

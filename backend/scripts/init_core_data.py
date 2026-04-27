@@ -13,10 +13,11 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from app.core.database import AsyncSessionFactory
-from app.models.event import Event
-from app.models.resident import Resident, VisitRecord
-from app.services.utils import mask_id_number, mask_phone
+# 允许脚本在未安装 backend 包时直接从 backend/scripts 目录运行。
+from app.core.database import AsyncSessionFactory  # noqa: E402
+from app.models.event import Event  # noqa: E402
+from app.models.resident import Resident, VisitRecord  # noqa: E402
+from app.services.utils import mask_id_number, mask_phone  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -165,7 +166,11 @@ def build_event_rows(residents: list[dict[str, object]], count: int) -> list[dic
 
     for index in range(count):
         template = templates[index % len(templates)]
-        resident = focus_residents[index % len(focus_residents)] if template["category"] in {"COMPLAINT", "DISPUTE", "VISIT"} else None
+        resident = (
+            focus_residents[index % len(focus_residents)]
+            if template["category"] in {"COMPLAINT", "DISPUTE", "VISIT"}
+            else None
+        )
         address = str(resident["address"]) if resident else f"和宁社区公共区域{index + 1}号点位"
         days_back = 2 + round((count - 1 - index) * dashboard_window_days / denominator)
         created_at = created_anchor - timedelta(days=days_back) + timedelta(hours=index % 5)
@@ -311,17 +316,21 @@ async def insert_data(resident_total: int, event_total: int, visit_total: int) -
         if event_rows:
             session.add_all(event_rows)
 
-        visit_rows_data = build_visit_rows(
-            [
-                {
-                    "name": resident.name,
-                    "address": resident.address,
-                    "tags": list(resident.tags or []),
-                }
-                for resident in resident_map.values()
-            ],
-            visit_total,
-        ) if visit_total > 0 else []
+        visit_rows_data = (
+            build_visit_rows(
+                [
+                    {
+                        "name": resident.name,
+                        "address": resident.address,
+                        "tags": list(resident.tags or []),
+                    }
+                    for resident in resident_map.values()
+                ],
+                visit_total,
+            )
+            if visit_total > 0
+            else []
+        )
 
         visit_rows: list[VisitRecord] = []
         for row in visit_rows_data:

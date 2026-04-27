@@ -19,6 +19,12 @@ from app.core.logging import get_logger
 from app.rag.generator import QwenGenerator, get_qwen_generator
 from app.rag.reranker import BGEReranker, get_reranker
 from app.rag.retriever import HybridRetriever
+from app.rag.sources import (
+    build_chunk_sources,
+    build_web_sources,
+    filter_chunk_sources_by_citation,
+    filter_web_sources_by_citation,
+)
 from app.rag.types import Chunk
 from app.schemas.chat import ChatDebugResponse, RetrievalCandidate, SourceItem
 from app.schemas.web_search import WebSearchResult
@@ -62,6 +68,8 @@ class RAGPipeline:
         memory_snippets = memory_service.render_memory_context(memories)
         should_search_web = self._should_search_web(enable_web_search)
         cache_key = self._cache_key(normalized_query, doc_types, should_search_web, memory_snippets)
+
+        # 缓存命中时仍然落一条助手消息，保证会话历史与用户看到的回复一致。
         cached = await self.cache.get_json(cache_key)
         if isinstance(cached, dict):
             logger.info("rag_cache_hit", cache_key=cache_key)
@@ -73,6 +81,7 @@ class RAGPipeline:
             await chat_service.save_chat_message(session, session_id, "assistant", cached_answer, cached_sources)
             return
 
+        # 本地知识库检索和联网搜索分开执行，联网失败只降级，不影响本地 RAG 链路。
         retrieval = await self.retriever.retrieve(session, normalized_query, doc_types=doc_types)
         reranked = await self.reranker.rerank(normalized_query, retrieval.fused)
         grounded = any((item.rerank_score or 0) >= self.settings.rag_min_relevance_score for item in reranked)
@@ -90,7 +99,7 @@ class RAGPipeline:
                 await chat_service.save_chat_message(session, session_id, "assistant", fallback, [])
             else:
                 selected_chunks = self._trim_context_chunks(reranked) if grounded else []
-                sources = self._build_sources(selected_chunks)
+                sources = build_chunk_sources(selected_chunks)
                 prompt_preview = self.generator.render_prompt(
                     "qa_system.j2",
                     contexts=selected_chunks,
@@ -104,8 +113,9 @@ class RAGPipeline:
                     answer_parts.append(delta)
                     yield {"type": "chunk", "content": delta}
                 answer_text = "".join(answer_parts).strip()
-                cited_sources = self._filter_sources_by_citation(answer_text, selected_chunks, fallback=sources)
-                cited_sources.extend(self._filter_web_sources_by_citation(answer_text, web_results))
+                # 只返回答案实际引用过的来源；如果模型未写引用标记，则保留已选上下文作为兜底。
+                cited_sources = filter_chunk_sources_by_citation(answer_text, selected_chunks, fallback=sources)
+                cited_sources.extend(filter_web_sources_by_citation(answer_text, web_results))
                 serialized_sources = [item.model_dump() for item in cited_sources]
                 yield {"type": "sources", "sources": serialized_sources}
                 yield {"type": "done"}
@@ -118,6 +128,7 @@ class RAGPipeline:
         finally:
             current_task = asyncio.current_task()
             if current_task is None or not current_task.cancelling():
+                # 检索日志是排查召回和重排效果的关键证据，和回答保存互不阻塞。
                 with suppress(Exception):
                     await chat_service.save_retrieval_log(
                         session=session,
@@ -163,7 +174,7 @@ class RAGPipeline:
             web_results=web_results,
             question=question,
         )
-        sources = self._build_sources(selected_chunks)
+        sources = build_chunk_sources(selected_chunks)
         return ChatDebugResponse(
             original_query=question,
             rewritten_query=rewritten_query,
@@ -175,7 +186,7 @@ class RAGPipeline:
             reranked_candidates=[RetrievalCandidate(**item.to_debug_dict()) for item in reranked],
             selected_sources=sources,
             memories=memory_snippets,
-            web_results=self._build_web_sources(web_results),
+            web_results=build_web_sources(web_results),
         )
 
     def rewrite_query(self, question: str) -> str:
@@ -197,85 +208,6 @@ class RAGPipeline:
             selected.append(chunk)
             total += estimate
         return selected[: self.settings.rag_rerank_top_n]
-
-    def _build_sources(self, chunks: list[Chunk]) -> list[SourceItem]:
-        """Convert selected chunks into source items."""
-
-        return [
-            SourceItem(
-                chunk_id=chunk.id,
-                doc_id=chunk.metadata.doc_id,
-                doc_name=chunk.metadata.doc_name,
-                doc_type=chunk.metadata.doc_type,
-                page=chunk.metadata.page,
-                section=chunk.metadata.section,
-                excerpt=chunk.text[:220],
-                score=chunk.rerank_score or chunk.fused_score or chunk.dense_score or chunk.sparse_score,
-            )
-            for chunk in chunks
-        ]
-
-    def _build_web_sources(self, web_results: list[WebSearchResult]) -> list[SourceItem]:
-        """Convert web search results into source items."""
-
-        return [
-            SourceItem(
-                chunk_id=None,
-                doc_id=None,
-                doc_name=result.title,
-                doc_type=f"web:{result.provider}",
-                page=None,
-                section=None,
-                excerpt=result.snippet or result.url,
-                score=result.score,
-                url=result.url,
-            )
-            for result in web_results
-        ]
-
-    def _filter_sources_by_citation(
-        self,
-        answer_text: str,
-        chunks: list[Chunk],
-        fallback: list[SourceItem],
-    ) -> list[SourceItem]:
-        """Map citation markers like [1] back to retrieved sources."""
-
-        indexes = {int(value) for value in re.findall(r"\[(\d+)\]", answer_text)}
-        if not indexes:
-            return fallback
-        mapped: list[SourceItem] = []
-        for index in sorted(indexes):
-            if 1 <= index <= len(chunks):
-                chunk = chunks[index - 1]
-                mapped.append(
-                    SourceItem(
-                        chunk_id=chunk.id,
-                        doc_id=chunk.metadata.doc_id,
-                        doc_name=chunk.metadata.doc_name,
-                        doc_type=chunk.metadata.doc_type,
-                        page=chunk.metadata.page,
-                        section=chunk.metadata.section,
-                        excerpt=chunk.text[:220],
-                        score=chunk.rerank_score,
-                    )
-                )
-        return mapped or fallback
-
-    def _filter_web_sources_by_citation(
-        self,
-        answer_text: str,
-        web_results: list[WebSearchResult],
-    ) -> list[SourceItem]:
-        """Map web citation markers like [W1] back to web search results."""
-
-        web_sources = self._build_web_sources(web_results)
-        if not web_sources:
-            return []
-        indexes = {int(value) for value in re.findall(r"\[W(\d+)\]", answer_text, flags=re.IGNORECASE)}
-        if not indexes:
-            return web_sources
-        return [web_sources[index - 1] for index in sorted(indexes) if 1 <= index <= len(web_sources)]
 
     def _estimate_tokens(self, text: str) -> int:
         """Estimate token usage from string length."""
