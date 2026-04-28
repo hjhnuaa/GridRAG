@@ -14,7 +14,7 @@ from app.core.database import get_db_session
 from app.core.exceptions import AppError
 from app.schemas.common import ApiResponse, success_response
 from app.schemas.mcp import MCPRequest
-from app.services.memory import list_memories, save_memory, to_memory_item
+from app.services.memory import list_memories, list_scoped_memories, save_memory, to_memory_item
 from app.services.web_search import WebSearchService
 
 router = APIRouter(prefix="/mcp", tags=["MCP"])
@@ -86,16 +86,23 @@ async def _call_tool(payload: MCPRequest, session: AsyncSession) -> dict[str, An
 async def _tool_memory_add(session: AsyncSession, arguments: dict[str, Any]) -> dict[str, Any]:
     """Add a memory through MCP."""
 
-    session_id = _required_string(arguments, "session_id")
+    scope = _optional_string(arguments, "scope")
+    if scope:
+        session_id = _optional_string(arguments, "session_id") or ""
+    else:
+        session_id = _required_string(arguments, "session_id")
     content = _required_string(arguments, "content")
     memory_type = str(arguments.get("memory_type") or "mcp")
     metadata = arguments.get("metadata") if isinstance(arguments.get("metadata"), dict) else {}
+    key = _optional_string(arguments, "key")
     memory = await save_memory(
         session,
         session_id=session_id,
         content=content,
         memory_type=memory_type,
         metadata=metadata,
+        scope=scope,
+        key=key,
     )
     return to_memory_item(memory).model_dump()
 
@@ -103,10 +110,16 @@ async def _tool_memory_add(session: AsyncSession, arguments: dict[str, Any]) -> 
 async def _tool_memory_search(session: AsyncSession, arguments: dict[str, Any]) -> dict[str, Any]:
     """Search memories through MCP."""
 
-    session_id = _required_string(arguments, "session_id")
+    scope = _optional_string(arguments, "scope")
+    session_id = _optional_string(arguments, "session_id")
     query = str(arguments.get("query") or "")
     limit = int(arguments.get("limit") or 5)
-    memories = await list_memories(session, session_id=session_id, query=query, limit=max(1, min(limit, 20)))
+    if scope:
+        memories = await list_scoped_memories(session, scope=scope, query=query, limit=max(1, min(limit, 20)))
+    else:
+        if not session_id:
+            raise ValueError("Missing required argument: session_id")
+        memories = await list_memories(session, session_id=session_id, query=query, limit=max(1, min(limit, 20)))
     return {"items": [to_memory_item(item).model_dump() for item in memories]}
 
 
@@ -125,29 +138,38 @@ def _tool_definitions() -> list[dict[str, Any]]:
     return [
         {
             "name": "gridrag.memory.add",
-            "description": "为指定会话写入一条长期记忆。",
+            "description": "为指定会话或分层 scope 写入一条长期记忆。",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "session_id": {"type": "string", "description": "聊天会话 ID"},
+                    "session_id": {"type": "string", "description": "聊天会话 ID；写 scope 记忆时可省略"},
+                    "scope": {
+                        "type": "string",
+                        "description": "可选分层 scope：organization、project、personal、local、auto",
+                    },
+                    "key": {"type": "string", "description": "可选覆盖键；同 scope 同 key 会更新旧记忆"},
                     "content": {"type": "string", "description": "需要记住的内容"},
                     "memory_type": {"type": "string", "description": "记忆类型，可选"},
                     "metadata": {"type": "object", "description": "附加元数据，可选"},
                 },
-                "required": ["session_id", "content"],
+                "required": ["content"],
             },
         },
         {
             "name": "gridrag.memory.search",
-            "description": "按会话和查询词检索长期记忆。",
+            "description": "按会话或分层 scope 和查询词检索长期记忆。",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "session_id": {"type": "string", "description": "聊天会话 ID"},
+                    "scope": {
+                        "type": "string",
+                        "description": "可选分层 scope：organization、project、personal、local、auto",
+                    },
                     "query": {"type": "string", "description": "检索词，可为空"},
                     "limit": {"type": "integer", "minimum": 1, "maximum": 20},
                 },
-                "required": ["session_id"],
+                "required": [],
             },
         },
         {
@@ -171,6 +193,15 @@ def _required_string(arguments: dict[str, Any], key: str) -> str:
     value = arguments.get(key)
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"Missing required argument: {key}")
+    return value.strip()
+
+
+def _optional_string(arguments: dict[str, Any], key: str) -> str | None:
+    """Read an optional string argument."""
+
+    value = arguments.get(key)
+    if not isinstance(value, str) or not value.strip():
+        return None
     return value.strip()
 
 

@@ -36,7 +36,7 @@ GridRAG 面向基层网格治理和社区服务场景，围绕政策知识查询
 | 流式智能问答 | 后端通过 SSE 返回模型增量输出，前端实时展示回答和引用来源。 |
 | AI 辅助填报 | 事件描述可自动转成工单字段建议，降低基层录入成本。 |
 | AI 走访建议 | 结合居民档案、走访记录和关联事件生成走访提醒；模型不可用时有本地规则兜底。 |
-| 长期记忆管理 | 支持自动沉淀记忆，也支持前端手动新增、搜索、删除和清空当前会话记忆。 |
+| 长期记忆管理 | 支持组织、项目、个人、本地、自动经验和会话记忆分层，支持手动新增、自动沉淀、搜索、删除和上下文预览。 |
 | 联网搜索扩展 | 可选接入 SearXNG、Bing、Serper，默认关闭，避免离线部署误出网。 |
 | MCP 网关 | 以 JSON-RPC 形式暴露记忆和联网搜索工具，便于被外部智能体复用。 |
 
@@ -352,10 +352,11 @@ demo/low_income_policy_demo.txt
 
 ### 长期记忆
 
-1. 用户消息中出现“记住、以后、偏好、默认、称呼”等触发词时，系统自动保存记忆。
-2. 聊天页“记忆管理”支持手动新增、搜索、删除和清空。
-3. 每次问答前检索当前会话相关记忆，并注入 Prompt。
-4. Prompt 明确要求记忆只作为用户偏好和上下文线索，不能作为政策依据。
+1. 人写规则按 `organization < project < personal < local` 分层保存，越具体的层级优先级越高。
+2. 同一层级或跨层级可用 `key` 表示同一主题，注入 Prompt 前按类似 Git 配置的逻辑自动覆盖去重。
+3. 用户消息中出现“记住、以后、偏好、默认、称呼”等触发词时，系统自动沉淀跨会话 `auto` 记忆，并标记为 `preference`、`project_pattern`、`debug_experience` 或 `note`。
+4. 每次问答前同时加载规则层、自动经验层和当前会话相关记忆，再压缩为带标签的 Prompt 片段。
+5. Prompt 明确要求记忆只作为回答风格、用户偏好、辖区背景和历史经验线索，不能作为政策依据。
 
 ### 事件辅助填报
 
@@ -381,6 +382,9 @@ demo/low_income_policy_demo.txt
 | RAG Debug | `POST /api/v1/chat/debug` | 返回检索、重排和 Prompt 预览 |
 | 记忆列表 | `GET /api/v1/memory/{session_id}` | 查询或搜索记忆 |
 | 新增记忆 | `POST /api/v1/memory` | 手动保存长期记忆 |
+| 分层记忆列表 | `GET /api/v1/memory/scopes/{scope}` | 查询组织、项目、个人、本地或自动记忆 |
+| 新增分层记忆 | `POST /api/v1/memory/scopes/{scope}` | 写入 scoped 规则或自动记忆 |
+| 记忆上下文预览 | `GET /api/v1/memory/{session_id}/context` | 预览最终注入 Prompt 的记忆片段 |
 | 删除记忆 | `DELETE /api/v1/memory/{memory_id}` | 删除单条记忆 |
 | 清空记忆 | `DELETE /api/v1/memory/sessions/{session_id}` | 清空当前会话记忆 |
 | 文档列表 | `GET /api/v1/knowledge/documents` | 查询知识库文档 |

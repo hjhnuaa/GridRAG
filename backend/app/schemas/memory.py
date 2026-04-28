@@ -15,6 +15,17 @@ class MemoryCreateRequest(BaseSchema):
     session_id: str = Field(min_length=1, max_length=64)
     content: str = Field(min_length=1, max_length=2000)
     memory_type: str = Field(default="note", max_length=32)
+    scope: str | None = Field(default=None, max_length=32)
+    key: str | None = Field(default=None, max_length=120)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ScopedMemoryCreateRequest(BaseSchema):
+    """Request payload for creating a scoped rule or auto memory."""
+
+    content: str = Field(min_length=1, max_length=2000)
+    memory_type: str = Field(default="rule", max_length=32)
+    key: str | None = Field(default=None, max_length=120)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -36,6 +47,12 @@ class MemorySearchResponse(BaseSchema):
     """Search response for session memories."""
 
     items: list[MemoryItem]
+
+
+class MemoryContextResponse(BaseSchema):
+    """Preview of the memory snippets injected into a prompt."""
+
+    snippets: list[str]
 
 
 class MemoryDeleteResponse(BaseSchema):
