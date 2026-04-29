@@ -4,7 +4,9 @@ import type {
   ChatAskRequest,
   ChatDebugResponse,
   ChatMessage,
+  ChatSessionCreateRequest,
   ChatSessionDeleteResponse,
+  ChatSessionSummary,
   MemoryDeleteResponse,
   MemoryItem,
   MemorySearchResponse
@@ -77,6 +79,25 @@ export async function fetchChatHistory(sessionId: string): Promise<PaginatedData
       }
     })
   );
+}
+
+export async function fetchChatSessions(): Promise<PaginatedData<ChatSessionSummary>> {
+  return unwrapResponse(
+    apiClient.get("/chat/sessions", {
+      params: {
+        page: 1,
+        page_size: 100
+      }
+    })
+  );
+}
+
+export async function createChatSession(payload: ChatSessionCreateRequest): Promise<ChatSessionSummary> {
+  return unwrapResponse(apiClient.post("/chat/sessions", payload));
+}
+
+export async function updateChatSessionTitle(sessionId: string, title: string): Promise<ChatSessionSummary> {
+  return unwrapResponse(apiClient.patch(`/chat/sessions/${sessionId}`, { title }));
 }
 
 export async function fetchChatDebug(payload: ChatAskRequest): Promise<ChatDebugResponse> {

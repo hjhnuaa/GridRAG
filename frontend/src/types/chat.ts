@@ -30,6 +30,19 @@ export interface ChatMessage {
   created_at: string;
 }
 
+export interface ChatSessionSummary {
+  id: string;
+  title: string;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatSessionCreateRequest {
+  session_id?: string;
+  title?: string;
+}
+
 export interface RetrievalCandidate {
   chunk_id: string;
   text: string;
@@ -89,4 +102,6 @@ export interface LocalSessionSummary {
   id: string;
   title: string;
   updatedAt: string;
+  createdAt?: string;
+  messageCount?: number;
 }

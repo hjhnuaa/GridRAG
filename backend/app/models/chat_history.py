@@ -11,6 +11,22 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base, UUIDPrimaryKeyMixin
 
 
+class ChatSession(UUIDPrimaryKeyMixin, Base):
+    """Persisted chat session metadata."""
+
+    __tablename__ = "chat_sessions"
+    __table_args__ = (Index("ix_chat_sessions_updated_at", "updated_at"),)
+
+    title: Mapped[str] = mapped_column(String(120), nullable=False, default="新会话")
+    message_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
 class ChatHistory(UUIDPrimaryKeyMixin, Base):
     """Persisted chat message history."""
 

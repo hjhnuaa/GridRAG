@@ -47,6 +47,29 @@ class ChatMessage(BaseSchema):
     created_at: str
 
 
+class ChatSessionCreateRequest(BaseSchema):
+    """Create or ensure a persisted chat session."""
+
+    session_id: str | None = Field(default=None, min_length=1, max_length=36)
+    title: str | None = Field(default=None, max_length=120)
+
+
+class ChatSessionUpdateRequest(BaseSchema):
+    """Update persisted chat session metadata."""
+
+    title: str = Field(min_length=1, max_length=120)
+
+
+class ChatSessionSummary(BaseSchema):
+    """A chat session list item."""
+
+    id: str
+    title: str
+    message_count: int
+    created_at: str
+    updated_at: str
+
+
 class ChatSessionDeleteResponse(BaseSchema):
     """Delete result for a chat session."""
 

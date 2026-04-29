@@ -15,17 +15,19 @@ import { useEffect, useState } from "react";
 
 import {
   clearSessionMemories,
+  createChatSession,
   createMemory,
   deleteChatSession,
   deleteMemory,
   fetchChatDebug,
   fetchChatHistory,
+  fetchChatSessions,
   fetchMemories
 } from "../../api/chat";
 import { ChatWindow } from "../../components/ChatWindow/ChatWindow";
 import { useChatStream } from "../../hooks/useChatStream";
 import { useChatStore } from "../../stores/chatStore";
-import type { ChatAskRequest, LocalSessionSummary, RetrievalCandidate } from "../../types/chat";
+import type { ChatAskRequest, ChatSessionSummary, LocalSessionSummary, RetrievalCandidate } from "../../types/chat";
 import { docTypeLabel, formatDateTime } from "../../utils/presenters";
 
 const docTypeOptions = [
@@ -44,6 +46,16 @@ function groupSessions(sessions: LocalSessionSummary[]): Array<{ label: string; 
     grouped.set(key, bucket);
   });
   return Array.from(grouped.entries()).map(([label, items]) => ({ label, items }));
+}
+
+function toLocalSession(item: ChatSessionSummary): LocalSessionSummary {
+  return {
+    id: item.id,
+    title: item.title,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+    messageCount: item.message_count
+  };
 }
 
 function CandidateList({ items }: { items: RetrievalCandidate[] }): JSX.Element {
@@ -79,6 +91,7 @@ export function ChatPage(): JSX.Element {
     sessions,
     messagesBySession,
     createSession,
+    hydrateSessions,
     hydrateHistory,
     setCurrentSession,
     upsertMessage,
@@ -93,12 +106,41 @@ export function ChatPage(): JSX.Element {
   const [memoryContent, setMemoryContent] = useState("");
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (!currentSessionId) {
-      const sessionId = createSession();
-      setCurrentSession(sessionId);
+  const createSessionMutation = useMutation({
+    mutationFn: (sessionId: string) => createChatSession({ session_id: sessionId }),
+    onSuccess: (result) => {
+      hydrateSessions([toLocalSession(result)]);
+      void queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
+    },
+    onError: () => {
+      message.warning("会话已先保存到本地，发送消息时会再次同步到数据库。");
     }
-  }, [createSession, currentSessionId, setCurrentSession]);
+  });
+
+  const sessionsQuery = useQuery({
+    queryKey: ["chat-sessions"],
+    queryFn: fetchChatSessions
+  });
+
+  useEffect(() => {
+    if (sessionsQuery.data) {
+      hydrateSessions(sessionsQuery.data.items.map(toLocalSession));
+    }
+  }, [hydrateSessions, sessionsQuery.data]);
+
+  useEffect(() => {
+    if (sessionsQuery.isLoading || currentSessionId) {
+      return;
+    }
+    const existingSessionId = sessions[0]?.id;
+    if (existingSessionId) {
+      setCurrentSession(existingSessionId);
+      return;
+    }
+
+    const sessionId = createSession();
+    void createSessionMutation.mutateAsync(sessionId);
+  }, [createSession, createSessionMutation, currentSessionId, sessions, sessionsQuery.isLoading, setCurrentSession]);
 
   const historyQuery = useQuery({
     queryKey: ["chat-history", currentSessionId],
@@ -150,6 +192,7 @@ export function ChatPage(): JSX.Element {
     onSuccess: (result) => {
       const nextSessionId = deleteSession(result.session_id);
       void queryClient.removeQueries({ queryKey: ["chat-history", result.session_id] });
+      void queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
       if (nextSessionId) {
         void queryClient.invalidateQueries({ queryKey: ["chat-history", nextSessionId] });
       }
@@ -182,6 +225,8 @@ export function ChatPage(): JSX.Element {
 
     setQuestion("");
     await sendQuestion(payload);
+    void queryClient.invalidateQueries({ queryKey: ["chat-history", currentSessionId] });
+    void queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
   };
 
   const openDebug = async (): Promise<void> => {
@@ -206,6 +251,7 @@ export function ChatPage(): JSX.Element {
   const handleCreateSession = (): void => {
     const sessionId = createSession();
     setCurrentSession(sessionId);
+    void createSessionMutation.mutateAsync(sessionId);
   };
 
   const handleDeleteSession = async (): Promise<void> => {

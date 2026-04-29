@@ -14,9 +14,16 @@ from app.core.database import get_db_session
 from app.core.exceptions import AppError
 from app.core.logging import get_logger
 from app.rag.pipeline import RAGPipeline
-from app.schemas.chat import ChatAskRequest
+from app.schemas.chat import ChatAskRequest, ChatSessionCreateRequest, ChatSessionUpdateRequest
 from app.schemas.common import ApiResponse, success_response
-from app.services.chat import delete_chat_session, list_chat_history, save_chat_message
+from app.services.chat import (
+    create_chat_session,
+    delete_chat_session,
+    list_chat_history,
+    list_chat_sessions,
+    save_chat_message,
+    update_chat_session_title,
+)
 from app.services.memory import maybe_save_user_memory
 
 router = APIRouter(prefix="/chat", tags=["智能问答"])
@@ -68,6 +75,41 @@ async def ask(
         "X-Accel-Buffering": "no",
     }
     return StreamingResponse(event_stream(), media_type="text/event-stream", headers=headers)
+
+
+@router.post("/sessions")
+async def create_session(
+    payload: ChatSessionCreateRequest,
+    session: AsyncSession = Depends(get_db_session),
+) -> ApiResponse[object]:
+    """Create or ensure a persisted chat session."""
+
+    data = await create_chat_session(session, session_id=payload.session_id, title=payload.title)
+    return success_response(data)
+
+
+@router.get("/sessions")
+async def sessions(
+    page: int = 1,
+    page_size: int = 50,
+    session: AsyncSession = Depends(get_db_session),
+) -> ApiResponse[object]:
+    """Return persisted chat sessions."""
+
+    data = await list_chat_sessions(session, page=page, page_size=page_size)
+    return success_response(data)
+
+
+@router.patch("/sessions/{session_id}")
+async def update_session(
+    session_id: str,
+    payload: ChatSessionUpdateRequest,
+    session: AsyncSession = Depends(get_db_session),
+) -> ApiResponse[object]:
+    """Update a persisted chat session."""
+
+    data = await update_chat_session_title(session, session_id=session_id, title=payload.title)
+    return success_response(data)
 
 
 @router.get("/history/{session_id}")
