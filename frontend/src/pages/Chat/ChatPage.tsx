@@ -8,7 +8,7 @@ import {
   PlusOutlined,
   SendOutlined
 } from "@ant-design/icons";
-import { Button, Drawer, Empty, Input, List, Popconfirm, Select, Space, Spin, Switch, Tabs, Tag, Typography, message } from "antd";
+import { Button, Drawer, Empty, Input, List, Popconfirm, Select, Space, Spin, Switch, Tag, Typography, message } from "antd";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
@@ -25,10 +25,11 @@ import {
   fetchMemories
 } from "../../api/chat";
 import { ChatWindow } from "../../components/ChatWindow/ChatWindow";
+import { RagDebugPanel } from "../../components/RagDebugPanel/RagDebugPanel";
 import { useChatStream } from "../../hooks/useChatStream";
 import { useChatStore } from "../../stores/chatStore";
-import type { ChatAskRequest, ChatSessionSummary, LocalSessionSummary, RetrievalCandidate } from "../../types/chat";
-import { docTypeLabel, formatDateTime } from "../../utils/presenters";
+import type { ChatAskRequest, ChatSessionSummary, LocalSessionSummary } from "../../types/chat";
+import { formatDateTime } from "../../utils/presenters";
 
 const docTypeOptions = [
   { label: "政策文件", value: "policy" },
@@ -56,33 +57,6 @@ function toLocalSession(item: ChatSessionSummary): LocalSessionSummary {
     updatedAt: item.updated_at,
     messageCount: item.message_count
   };
-}
-
-function CandidateList({ items }: { items: RetrievalCandidate[] }): JSX.Element {
-  if (!items.length) {
-    return <Empty description="暂无候选结果" />;
-  }
-
-  return (
-    <List
-      dataSource={items}
-      renderItem={(item) => (
-        <List.Item>
-          <div style={{ width: "100%" }}>
-            <Space wrap size={8} style={{ marginBottom: 8 }}>
-              <Tag color="volcano">{item.doc_name}</Tag>
-              <Tag>{docTypeLabel(item.doc_type)}</Tag>
-              {typeof item.rerank_score === "number" ? <Tag>重排 {item.rerank_score.toFixed(3)}</Tag> : null}
-              {typeof item.fused_score === "number" ? <Tag>融合 {item.fused_score.toFixed(3)}</Tag> : null}
-            </Space>
-            <Typography.Paragraph style={{ margin: 0 }} ellipsis={{ rows: 3, expandable: true }}>
-              {item.text}
-            </Typography.Paragraph>
-          </div>
-        </List.Item>
-      )}
-    />
-  );
 }
 
 export function ChatPage(): JSX.Element {
@@ -322,15 +296,15 @@ export function ChatPage(): JSX.Element {
                   <div style={{ display: "grid", gap: 8 }}>
                     {group.items.map((item) => (
                       <Button
+                        className="chat-session-button"
                         key={item.id}
                         type={item.id === currentSessionId ? "primary" : "default"}
                         icon={<MessageOutlined />}
-                        style={{ justifyContent: "flex-start", height: "auto", paddingBlock: 10 }}
                         onClick={() => setCurrentSession(item.id)}
                       >
-                        <div style={{ textAlign: "left" }}>
-                          <div>{item.title}</div>
-                          <div style={{ fontSize: 12, opacity: 0.7 }}>{formatDateTime(item.updatedAt)}</div>
+                        <div className="chat-session-button-copy">
+                          <div className="chat-session-title">{item.title}</div>
+                          <div className="chat-session-time">{formatDateTime(item.updatedAt)}</div>
                         </div>
                       </Button>
                     ))}
@@ -416,60 +390,14 @@ export function ChatPage(): JSX.Element {
         </section>
       </div>
 
-      <Drawer width={720} title="RAG 调试详情" open={debugOpen} onClose={() => setDebugOpen(false)}>
-        {debugMutation.isPending ? (
-          <Spin />
-        ) : debugMutation.data ? (
-          <Space direction="vertical" style={{ width: "100%" }} size={16}>
-            <div className="glass-card" style={{ padding: 16 }}>
-              <div className="section-title" style={{ fontSize: 18 }}>
-                查询概览
-              </div>
-              <p className="section-note">原始问题：{debugMutation.data.original_query}</p>
-              <p className="section-note">检索表达：{debugMutation.data.rewritten_query}</p>
-              <Tag color={debugMutation.data.grounded ? "success" : "warning"}>
-                {debugMutation.data.grounded ? "已命中有效依据" : "依据不足"}
-              </Tag>
-            </div>
-            <div className="glass-card" style={{ padding: 16 }}>
-              <div className="section-title" style={{ fontSize: 18 }}>
-                Prompt 预览
-              </div>
-              <Typography.Paragraph
-                style={{ whiteSpace: "pre-wrap", marginTop: 12 }}
-                ellipsis={{ rows: 10, expandable: true }}
-              >
-                {debugMutation.data.prompt_preview}
-              </Typography.Paragraph>
-            </div>
-            <Tabs
-              items={[
-                {
-                  key: "dense",
-                  label: "向量检索",
-                  children: <CandidateList items={debugMutation.data.dense_candidates} />
-                },
-                {
-                  key: "sparse",
-                  label: "BM25",
-                  children: <CandidateList items={debugMutation.data.sparse_candidates} />
-                },
-                {
-                  key: "fused",
-                  label: "融合结果",
-                  children: <CandidateList items={debugMutation.data.fused_candidates} />
-                },
-                {
-                  key: "reranked",
-                  label: "重排结果",
-                  children: <CandidateList items={debugMutation.data.reranked_candidates} />
-                }
-              ]}
-            />
-          </Space>
-        ) : (
-          <Empty description="暂无调试结果" />
-        )}
+      <Drawer
+        className="rag-debug-drawer"
+        width={980}
+        title="RAG 调试详情"
+        open={debugOpen}
+        onClose={() => setDebugOpen(false)}
+      >
+        <RagDebugPanel data={debugMutation.data} loading={debugMutation.isPending} />
       </Drawer>
 
       <Drawer width={640} title="当前会话记忆" open={memoryOpen} onClose={() => setMemoryOpen(false)}>

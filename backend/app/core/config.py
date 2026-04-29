@@ -102,6 +102,7 @@ class Settings(BaseSettings):
             "http://127.0.0.1:5173",
         ],
     )
+    cors_origin_regex: str | None = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -110,6 +111,15 @@ class Settings(BaseSettings):
 
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
+    @field_validator("cors_origin_regex", mode="before")
+    @classmethod
+    def _parse_cors_origin_regex(cls, value: Any) -> str | None | Any:
+        """Treat a blank CORS regex as disabled instead of matching every origin."""
+
+        if isinstance(value, str):
+            return value.strip() or None
         return value
 
     @field_validator("qwen_api_key", mode="before")

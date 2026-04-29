@@ -1019,18 +1019,66 @@ a {
   gap: 12px;
 }
 
-.chat-session-list .ant-btn {
+.chat-session-list .chat-session-button.ant-btn {
+  justify-content: flex-start;
+  height: auto;
+  min-height: 58px;
+  padding-block: 10px;
   border-color: rgba(35, 75, 73, 0.16);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.58);
+  color: var(--ink);
   box-shadow: 0 8px 20px rgba(20, 45, 43, 0.06);
-  transition: transform 0.18s var(--ease-out), border-color 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
+  transition:
+    background 0.18s var(--ease-out),
+    color 0.18s var(--ease-out),
+    transform 0.18s var(--ease-out),
+    border-color 0.18s var(--ease-out),
+    box-shadow 0.18s var(--ease-out);
 }
 
-.chat-session-list .ant-btn:hover {
+.chat-session-list .chat-session-button.ant-btn:hover {
   border-color: rgba(33, 111, 106, 0.34);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ink);
   box-shadow: 0 12px 28px rgba(20, 45, 43, 0.1);
   transform: translateX(2px);
+}
+
+.chat-session-list .chat-session-button.ant-btn-primary {
+  border-color: rgba(33, 111, 106, 0.42);
+  background: linear-gradient(135deg, var(--teal), #174f4b);
+  color: #fff;
+}
+
+.chat-session-list .chat-session-button.ant-btn-primary:hover {
+  background: linear-gradient(135deg, #287c76, #174f4b);
+  color: #fff;
+}
+
+.chat-session-button-copy {
+  min-width: 0;
+  text-align: left;
+}
+
+.chat-session-title,
+.chat-session-time {
+  display: block;
+  overflow: hidden;
+  max-width: 190px;
+  color: currentColor;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-session-title {
+  font-weight: 700;
+}
+
+.chat-session-time {
+  margin-top: 3px;
+  font-size: 12px;
+  opacity: 0.68;
 }
 
 .chat-session-list {
@@ -1202,6 +1250,12 @@ a {
   .dashboard-side-stack {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .rag-debug-hero,
+  .rag-debug-columns,
+  .rag-source-columns {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ant-layout {
@@ -1266,6 +1320,383 @@ a {
 .ant-modal-content {
   background:
     linear-gradient(135deg, rgba(255, 252, 246, 0.96), rgba(239, 245, 239, 0.96));
+}
+
+.rag-debug-drawer .ant-drawer-body {
+  padding: 0;
+}
+
+.rag-debug-panel {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.rag-debug-loading {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  min-height: 360px;
+}
+
+.rag-debug-hero,
+.rag-debug-columns,
+.rag-source-columns {
+  display: grid;
+  gap: 14px;
+}
+
+.rag-debug-hero {
+  grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
+}
+
+.rag-debug-columns {
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+}
+
+.rag-source-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rag-query-panel,
+.rag-debug-section,
+.rag-source-panel,
+.rag-debug-metric,
+.rag-candidate-item,
+.rag-source-item {
+  border: 1px solid rgba(35, 75, 73, 0.18);
+  background:
+    linear-gradient(135deg, rgba(255, 252, 246, 0.9), rgba(242, 247, 240, 0.78)),
+    repeating-linear-gradient(90deg, rgba(35, 75, 73, 0.035) 0 1px, transparent 1px 34px);
+}
+
+.rag-query-panel,
+.rag-debug-section,
+.rag-source-panel {
+  min-width: 0;
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(20, 45, 43, 0.08);
+}
+
+.rag-query-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.rag-section-kicker {
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.rag-query-text.ant-typography {
+  margin: 12px 0;
+  color: var(--ink);
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 20px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.rag-query-rewrite {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid rgba(33, 111, 106, 0.14);
+  border-radius: 12px;
+  background: rgba(33, 111, 106, 0.08);
+}
+
+.rag-query-rewrite span {
+  color: rgba(23, 33, 31, 0.5);
+  font-size: 12px;
+}
+
+.rag-query-rewrite strong {
+  color: rgba(23, 33, 31, 0.82);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.rag-debug-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.rag-debug-metric {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 14px;
+}
+
+.rag-debug-metric.is-success {
+  border-color: rgba(33, 111, 106, 0.28);
+  background:
+    linear-gradient(135deg, rgba(33, 111, 106, 0.14), rgba(255, 252, 246, 0.82)),
+    repeating-linear-gradient(90deg, rgba(35, 75, 73, 0.035) 0 1px, transparent 1px 34px);
+}
+
+.rag-debug-metric.is-warning {
+  border-color: rgba(184, 132, 47, 0.34);
+  background:
+    linear-gradient(135deg, rgba(184, 132, 47, 0.16), rgba(255, 252, 246, 0.82)),
+    repeating-linear-gradient(90deg, rgba(35, 75, 73, 0.035) 0 1px, transparent 1px 34px);
+}
+
+.rag-debug-metric-icon,
+.rag-section-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(33, 111, 106, 0.12);
+  color: var(--teal);
+  font-size: 18px;
+}
+
+.rag-debug-metric-copy {
+  min-width: 0;
+}
+
+.rag-debug-metric-label,
+.rag-debug-metric-note {
+  color: rgba(23, 33, 31, 0.54);
+  font-size: 12px;
+}
+
+.rag-debug-metric-value {
+  margin-top: 6px;
+  color: var(--ink);
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 26px;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.rag-debug-metric-note {
+  margin-top: 7px;
+  line-height: 1.45;
+}
+
+.rag-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.rag-section-head.compact {
+  align-items: center;
+}
+
+.rag-section-head h3 {
+  margin: 5px 0 0;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 19px;
+  line-height: 1.2;
+}
+
+.rag-prompt-preview {
+  max-height: 380px;
+  margin: 0;
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid rgba(35, 75, 73, 0.14);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(20, 36, 34, 0.96), rgba(21, 31, 29, 0.96)),
+    repeating-linear-gradient(0deg, rgba(238, 247, 242, 0.06) 0 1px, transparent 1px 24px);
+  color: rgba(238, 247, 242, 0.9);
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.rag-memory-list,
+.rag-source-list,
+.rag-candidate-list {
+  display: grid;
+  gap: 10px;
+}
+
+.rag-memory-list {
+  max-height: 380px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.rag-memory-item {
+  padding: 11px 12px;
+  border: 1px solid rgba(33, 111, 106, 0.14);
+  border-radius: 12px;
+  background: rgba(33, 111, 106, 0.08);
+  color: rgba(23, 33, 31, 0.74);
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.rag-source-list {
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.rag-source-item {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.rag-source-topline,
+.rag-candidate-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rag-source-topline strong,
+.rag-candidate-title span {
+  min-width: 0;
+  color: var(--ink);
+  font-weight: 800;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.rag-source-meta,
+.rag-score-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.rag-source-meta span,
+.rag-score-pill {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(35, 75, 73, 0.08);
+  color: rgba(23, 33, 31, 0.58);
+  font-size: 12px;
+}
+
+.rag-source-item p {
+  margin: 10px 0 0;
+  color: rgba(23, 33, 31, 0.68);
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.rag-source-item a {
+  display: block;
+  margin-top: 8px;
+  color: var(--teal);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.rag-candidate-list {
+  max-height: 520px;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.rag-candidate-item {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 14px;
+}
+
+.rag-candidate-index {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(23, 33, 31, 0.86);
+  color: #eef7f2;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 15px;
+}
+
+.rag-candidate-body,
+.rag-candidate-title {
+  min-width: 0;
+}
+
+.rag-candidate-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rag-candidate-title em {
+  flex: 0 0 auto;
+  color: rgba(23, 33, 31, 0.48);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.rag-score-meter {
+  overflow: hidden;
+  height: 7px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: rgba(35, 75, 73, 0.12);
+}
+
+.rag-score-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--teal), var(--accent));
+}
+
+.rag-score-pill strong {
+  color: var(--ink);
+}
+
+.rag-candidate-section {
+  margin-top: 10px;
+  color: rgba(23, 33, 31, 0.5);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.rag-candidate-text.ant-typography {
+  margin: 10px 0 0;
+  color: rgba(23, 33, 31, 0.72);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.rag-debug-tabs .ant-tabs-nav {
+  margin-bottom: 12px;
+}
+
+.rag-debug-tabs .ant-tabs-tab {
+  padding: 8px 0;
+}
+
+.rag-debug-empty {
+  padding: 28px 0;
 }
 
 .ant-upload-wrapper .ant-upload-drag {
@@ -1406,6 +1837,23 @@ a {
 
   .chat-message-group {
     max-width: 100%;
+  }
+
+  .rag-debug-panel {
+    padding: 14px;
+  }
+
+  .rag-debug-metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rag-candidate-item {
+    grid-template-columns: 1fr;
+  }
+
+  .rag-candidate-index {
+    width: 34px;
+    height: 34px;
   }
 }
 
