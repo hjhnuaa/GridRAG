@@ -130,7 +130,7 @@ export function ChatPage(): JSX.Element {
 
   const messages = currentSessionId ? messagesBySession[currentSessionId] ?? [] : [];
   const sessionGroups = groupSessions(sessions);
-  const { sendQuestion, streaming, cancel } = useChatStream(currentSessionId);
+  const { sendQuestion, streaming, streamingMessageId, streamStatus, cancel } = useChatStream(currentSessionId);
   const debugMutation = useMutation({
     mutationFn: (payload: ChatAskRequest) => fetchChatDebug(payload)
   });
@@ -357,7 +357,7 @@ export function ChatPage(): JSX.Element {
                 <Spin />
               </div>
             ) : (
-              <ChatWindow messages={messages} />
+              <ChatWindow messages={messages} streamingMessageId={streamingMessageId} streamStatus={streamStatus} />
             )}
           </div>
 

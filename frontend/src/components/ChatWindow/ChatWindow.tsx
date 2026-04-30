@@ -4,16 +4,29 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 
+import type { ChatStreamStatus } from "../../hooks/useChatStream";
 import type { ChatMessage } from "../../types/chat";
 import { SourceCard } from "../SourceCard/SourceCard";
 
 interface ChatWindowProps {
   messages: ChatMessage[];
+  streamingMessageId?: string | null;
+  streamStatus?: ChatStreamStatus;
 }
 
 const SCROLL_THRESHOLD = 96;
 
-export function ChatWindow({ messages }: ChatWindowProps): JSX.Element {
+function streamStatusLabel(status: ChatStreamStatus | undefined): string {
+  if (status === "connecting") {
+    return "正在建立流式连接";
+  }
+  if (status === "sources") {
+    return "正在整理引用来源";
+  }
+  return "正在流式生成";
+}
+
+export function ChatWindow({ messages, streamingMessageId, streamStatus }: ChatWindowProps): JSX.Element {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [stickToBottom, setStickToBottom] = useState(true);
   const sessionMarker = messages.at(-1)?.session_id ?? "empty";
@@ -65,6 +78,7 @@ export function ChatWindow({ messages }: ChatWindowProps): JSX.Element {
           <div className="chat-message-stack">
             {messages.map((message) => {
               const isAssistant = message.role === "assistant";
+              const isStreamingMessage = isAssistant && message.id === streamingMessageId;
               return (
                 <div
                   className={`chat-message-row ${isAssistant ? "is-assistant" : "is-user"}`}
@@ -81,17 +95,30 @@ export function ChatWindow({ messages }: ChatWindowProps): JSX.Element {
                       }}
                     />
                     <div className="chat-message-content">
-                      <div className={`chat-bubble ${isAssistant ? "assistant" : "user"}`}>
+                      <div
+                        className={`chat-bubble ${isAssistant ? "assistant" : "user"} ${
+                          isStreamingMessage ? "is-streaming" : ""
+                        }`}
+                      >
                         {isAssistant ? (
-                          <div className="markdown-body">
-                            <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
-                              {message.content || "正在生成中..."}
-                            </ReactMarkdown>
+                          <div className={`markdown-body ${isStreamingMessage ? "is-streaming" : ""}`}>
+                            {message.content ? (
+                              <ReactMarkdown rehypePlugins={[rehypeHighlight]}>{message.content}</ReactMarkdown>
+                            ) : (
+                              <div className="chat-stream-placeholder">{streamStatusLabel(streamStatus)}</div>
+                            )}
+                            {isStreamingMessage ? <span className="chat-stream-cursor" aria-hidden="true" /> : null}
                           </div>
                         ) : (
                           <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.8 }}>{message.content}</div>
                         )}
                       </div>
+                      {isStreamingMessage ? (
+                        <div className="chat-stream-status">
+                          <span />
+                          {streamStatusLabel(streamStatus)}
+                        </div>
+                      ) : null}
                       {isAssistant && message.sources?.length ? <SourceCard sources={message.sources} /> : null}
                     </div>
                   </div>

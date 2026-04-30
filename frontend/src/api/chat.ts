@@ -15,11 +15,18 @@ import type { PaginatedData } from "../types/common";
 import { API_BASE_URL, apiClient, unwrapResponse } from "./client";
 
 export interface ChatStreamHandlers {
+  onOpen?: () => void;
   onChunk: (content: string) => void;
   onSources: (sources: ChatMessage["sources"]) => void;
   onError: (message: string) => void;
   onDone: () => void;
 }
+
+type ChatStreamEvent =
+  | { type: "chunk"; content: string }
+  | { type: "sources"; sources: ChatMessage["sources"] }
+  | { type: "error"; message: string }
+  | { type: "done" };
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
@@ -33,6 +40,7 @@ export async function startChatStream(
   await fetchEventSource(`${API_BASE_URL}/chat/ask`, {
     method: "POST",
     headers: {
+      "Accept": "text/event-stream",
       "Content-Type": "application/json"
     },
     body: JSON.stringify(payload),
@@ -41,13 +49,19 @@ export async function startChatStream(
       if (!response.ok) {
         throw new Error("问答请求打开失败。");
       }
+      handlers.onOpen?.();
     },
     onmessage(event) {
-      const data = JSON.parse(event.data) as
-        | { type: "chunk"; content: string }
-        | { type: "sources"; sources: ChatMessage["sources"] }
-        | { type: "error"; message: string }
-        | { type: "done" };
+      if (!event.data) {
+        return;
+      }
+      let data: ChatStreamEvent;
+      try {
+        data = JSON.parse(event.data) as ChatStreamEvent;
+      } catch {
+        handlers.onError("流式响应解析失败。");
+        return;
+      }
       if (data.type === "chunk") {
         handlers.onChunk(data.content);
       }
