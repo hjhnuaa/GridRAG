@@ -23,9 +23,15 @@ export function useChatStream(sessionId: string): {
   const [streamStatus, setStreamStatus] = useState<ChatStreamStatus>("idle");
   const abortRef = useRef<AbortController | null>(null);
   const activeAssistantIdRef = useRef<string | null>(null);
+  const inFlightRef = useRef(false);
   const { upsertMessage, patchAssistantMessage, attachSources } = useChatStore();
 
   const sendQuestion = async (payload: ChatAskRequest): Promise<void> => {
+    if (inFlightRef.current) {
+      return;
+    }
+    inFlightRef.current = true;
+
     const assistantId = crypto.randomUUID();
     const targetSessionId = payload.session_id || sessionId;
     let errorReported = false;
@@ -96,6 +102,7 @@ export function useChatStream(sessionId: string): {
     } finally {
       abortRef.current = null;
       activeAssistantIdRef.current = null;
+      inFlightRef.current = false;
     }
   };
 
@@ -108,6 +115,7 @@ export function useChatStream(sessionId: string): {
       }
     }
     abortRef.current?.abort();
+    inFlightRef.current = false;
     setStreaming(false);
     setStreamStatus("idle");
     setStreamingMessageId(null);

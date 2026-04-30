@@ -11,7 +11,7 @@ import {
 import { Button, Drawer, Empty, Input, List, Popconfirm, Select, Space, Spin, Switch, Tag, Typography, message } from "antd";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   clearSessionMemories,
@@ -78,6 +78,7 @@ export function ChatPage(): JSX.Element {
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [memoryQuery, setMemoryQuery] = useState("");
   const [memoryContent, setMemoryContent] = useState("");
+  const sendingRef = useRef(false);
   const queryClient = useQueryClient();
 
   const createSessionMutation = useMutation({
@@ -176,31 +177,36 @@ export function ChatPage(): JSX.Element {
 
   const handleSend = async (): Promise<void> => {
     const nextQuestion = question.trim();
-    if (!nextQuestion || !currentSessionId || streaming) {
+    if (!nextQuestion || !currentSessionId || streaming || sendingRef.current) {
       return;
     }
+    sendingRef.current = true;
 
-    upsertMessage(currentSessionId, {
-      id: crypto.randomUUID(),
-      session_id: currentSessionId,
-      role: "user",
-      content: nextQuestion,
-      created_at: new Date().toISOString()
-    });
+    try {
+      upsertMessage(currentSessionId, {
+        id: crypto.randomUUID(),
+        session_id: currentSessionId,
+        role: "user",
+        content: nextQuestion,
+        created_at: new Date().toISOString()
+      });
 
-    const payload: ChatAskRequest = {
-      session_id: currentSessionId,
-      question: nextQuestion,
-      filters: {
-        doc_types: docTypes,
-        enable_web_search: enableWebSearch
-      }
-    };
+      const payload: ChatAskRequest = {
+        session_id: currentSessionId,
+        question: nextQuestion,
+        filters: {
+          doc_types: docTypes,
+          enable_web_search: enableWebSearch
+        }
+      };
 
-    setQuestion("");
-    await sendQuestion(payload);
-    void queryClient.invalidateQueries({ queryKey: ["chat-history", currentSessionId] });
-    void queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
+      setQuestion("");
+      await sendQuestion(payload);
+      void queryClient.invalidateQueries({ queryKey: ["chat-history", currentSessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
+    } finally {
+      sendingRef.current = false;
+    }
   };
 
   const openDebug = async (): Promise<void> => {
