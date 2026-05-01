@@ -28,6 +28,16 @@ type ChatStreamEvent =
   | { type: "error"; message: string }
   | { type: "done" };
 
+async function readErrorMessage(response: Response): Promise<string> {
+  const fallback = "问答请求打开失败。";
+  try {
+    const text = await response.text();
+    return text.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
@@ -37,6 +47,15 @@ export async function startChatStream(
   handlers: ChatStreamHandlers,
   signal: AbortSignal
 ): Promise<void> {
+  let completed = false;
+
+  const finish = (): void => {
+    if (!completed) {
+      completed = true;
+      handlers.onDone();
+    }
+  };
+
   await fetchEventSource(`${API_BASE_URL}/chat/ask`, {
     method: "POST",
     headers: {
@@ -47,7 +66,11 @@ export async function startChatStream(
     signal,
     async onopen(response) {
       if (!response.ok) {
-        throw new Error("问答请求打开失败。");
+        throw new Error(await readErrorMessage(response));
+      }
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("text/event-stream")) {
+        throw new Error("服务端未返回流式响应。");
       }
       handlers.onOpen?.();
     },
@@ -72,12 +95,13 @@ export async function startChatStream(
         handlers.onError(data.message);
       }
       if (data.type === "done") {
-        handlers.onDone();
+        finish();
       }
     },
     onerror(error) {
       if (!isAbortError(error)) {
         handlers.onError(error instanceof Error ? error.message : "流式连接中断。");
+        finish();
       }
       throw error;
     }

@@ -23,8 +23,35 @@ export function useChatStream(sessionId: string): {
   const [streamStatus, setStreamStatus] = useState<ChatStreamStatus>("idle");
   const abortRef = useRef<AbortController | null>(null);
   const activeAssistantIdRef = useRef<string | null>(null);
+  const activeSessionIdRef = useRef<string | null>(null);
+  const flushFrameRef = useRef<number | null>(null);
+  const pendingContentRef = useRef("");
+  const renderedContentRef = useRef("");
   const inFlightRef = useRef(false);
   const { upsertMessage, patchAssistantMessage, attachSources } = useChatStore();
+
+  const flushPendingContent = (targetSessionId: string, assistantId: string): void => {
+    if (flushFrameRef.current !== null) {
+      cancelAnimationFrame(flushFrameRef.current);
+      flushFrameRef.current = null;
+    }
+    if (!pendingContentRef.current) {
+      return;
+    }
+    renderedContentRef.current += pendingContentRef.current;
+    pendingContentRef.current = "";
+    patchAssistantMessage(targetSessionId, assistantId, renderedContentRef.current);
+  };
+
+  const scheduleFlush = (targetSessionId: string, assistantId: string): void => {
+    if (flushFrameRef.current !== null) {
+      return;
+    }
+    flushFrameRef.current = requestAnimationFrame(() => {
+      flushFrameRef.current = null;
+      flushPendingContent(targetSessionId, assistantId);
+    });
+  };
 
   const sendQuestion = async (payload: ChatAskRequest): Promise<void> => {
     if (inFlightRef.current) {
@@ -37,6 +64,7 @@ export function useChatStream(sessionId: string): {
     let errorReported = false;
 
     const reportError = (errorMessage: string): void => {
+      flushPendingContent(targetSessionId, assistantId);
       if (!errorReported) {
         message.error(errorMessage);
         errorReported = true;
@@ -60,6 +88,9 @@ export function useChatStream(sessionId: string): {
     const controller = new AbortController();
     abortRef.current = controller;
     activeAssistantIdRef.current = assistantId;
+    activeSessionIdRef.current = targetSessionId;
+    pendingContentRef.current = "";
+    renderedContentRef.current = "";
     setStreamingMessageId(assistantId);
     setStreaming(true);
     setStreamStatus("connecting");
@@ -72,12 +103,11 @@ export function useChatStream(sessionId: string): {
           },
           onChunk: (content) => {
             setStreamStatus("answering");
-            const current = useChatStore
-              .getState()
-              .messagesBySession[targetSessionId]?.find((item) => item.id === assistantId);
-            patchAssistantMessage(targetSessionId, assistantId, `${current?.content ?? ""}${content}`);
+            pendingContentRef.current += content;
+            scheduleFlush(targetSessionId, assistantId);
           },
           onSources: (sources) => {
+            flushPendingContent(targetSessionId, assistantId);
             setStreamStatus("sources");
             attachSources(targetSessionId, assistantId, sources);
           },
@@ -85,6 +115,7 @@ export function useChatStream(sessionId: string): {
             reportError(errorMessage);
           },
           onDone: () => {
+            flushPendingContent(targetSessionId, assistantId);
             setStreaming(false);
             setStreamStatus("idle");
             setStreamingMessageId(null);
@@ -100,18 +131,24 @@ export function useChatStream(sessionId: string): {
       setStreamStatus("idle");
       setStreamingMessageId(null);
     } finally {
+      flushPendingContent(targetSessionId, assistantId);
       abortRef.current = null;
       activeAssistantIdRef.current = null;
+      activeSessionIdRef.current = null;
       inFlightRef.current = false;
     }
   };
 
   const cancel = (): void => {
     const assistantId = activeAssistantIdRef.current;
-    if (assistantId && sessionId) {
-      const current = useChatStore.getState().messagesBySession[sessionId]?.find((item) => item.id === assistantId);
+    const targetSessionId = activeSessionIdRef.current ?? sessionId;
+    if (assistantId && targetSessionId) {
+      flushPendingContent(targetSessionId, assistantId);
+      const current = useChatStore
+        .getState()
+        .messagesBySession[targetSessionId]?.find((item) => item.id === assistantId);
       if (!current?.content.trim()) {
-        patchAssistantMessage(sessionId, assistantId, "已停止生成。");
+        patchAssistantMessage(targetSessionId, assistantId, "已停止生成。");
       }
     }
     abortRef.current?.abort();
@@ -119,6 +156,8 @@ export function useChatStream(sessionId: string): {
     setStreaming(false);
     setStreamStatus("idle");
     setStreamingMessageId(null);
+    activeSessionIdRef.current = null;
+    activeAssistantIdRef.current = null;
   };
 
   return {

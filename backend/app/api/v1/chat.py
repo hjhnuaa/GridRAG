@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncGenerator
+from contextlib import suppress
+from typing import TypeAlias
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,16 +31,35 @@ from app.services.memory import maybe_save_user_memory
 
 router = APIRouter(prefix="/chat", tags=["智能问答"])
 logger = get_logger(__name__)
+SSE_HEARTBEAT_SECONDS = 10.0
+SSE_QUEUE_MAX_SIZE = 32
+SSEEvent: TypeAlias = dict[str, object]
 
 
-def _sse_payload(data: dict[str, object]) -> str:
+class _StreamEnd:
+    """Sentinel for the end of the producer task."""
+
+
+_STREAM_END = _StreamEnd()
+
+
+def _sse_payload(data: SSEEvent) -> str:
     """Format an SSE event."""
 
-    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+    event_type = str(data.get("type", "message"))
+    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    return f"event: {event_type}\ndata: {payload}\n\n"
+
+
+def _sse_heartbeat() -> str:
+    """Return an SSE comment heartbeat that clients ignore."""
+
+    return ": ping\n\n"
 
 
 @router.post("/ask")
 async def ask(
+    request: Request,
     payload: ChatAskRequest,
     session: AsyncSession = Depends(get_db_session),
     current_user: dict[str, object] = Depends(get_current_user),
@@ -51,26 +73,55 @@ async def ask(
     async def event_stream() -> AsyncGenerator[str, None]:
         """Yield SSE events from the RAG pipeline."""
 
+        queue: asyncio.Queue[SSEEvent | _StreamEnd] = asyncio.Queue(maxsize=SSE_QUEUE_MAX_SIZE)
+
+        async def produce_events() -> None:
+            try:
+                async for event in pipeline.stream_answer(
+                    session=session,
+                    session_id=payload.session_id,
+                    question=payload.question,
+                    doc_types=payload.filters.doc_types,
+                    enable_web_search=payload.filters.enable_web_search,
+                ):
+                    await queue.put(event)
+            except asyncio.CancelledError:
+                raise
+            except AppError as exc:
+                logger.exception("chat_stream_app_error", error=exc.message, user=current_user.get("username"))
+                await queue.put({"type": "error", "message": exc.message})
+                await queue.put({"type": "done"})
+            except Exception as exc:
+                logger.exception("chat_stream_failed", error=str(exc), user=current_user.get("username"))
+                await queue.put({"type": "error", "message": "问答失败，请稍后重试。"})
+                await queue.put({"type": "done"})
+            finally:
+                task = asyncio.current_task()
+                if task is None or not task.cancelling():
+                    await queue.put(_STREAM_END)
+
+        producer = asyncio.create_task(produce_events(), name=f"chat-sse-{payload.session_id}")
         try:
-            async for event in pipeline.stream_answer(
-                session=session,
-                session_id=payload.session_id,
-                question=payload.question,
-                doc_types=payload.filters.doc_types,
-                enable_web_search=payload.filters.enable_web_search,
-            ):
+            while True:
+                if await request.is_disconnected():
+                    producer.cancel()
+                    break
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=SSE_HEARTBEAT_SECONDS)
+                except asyncio.TimeoutError:
+                    yield _sse_heartbeat()
+                    continue
+                if isinstance(event, _StreamEnd):
+                    break
                 yield _sse_payload(event)
-        except AppError as exc:
-            logger.exception("chat_stream_app_error", error=exc.message, user=current_user.get("username"))
-            yield _sse_payload({"type": "error", "message": exc.message})
-            yield _sse_payload({"type": "done"})
-        except Exception as exc:
-            logger.exception("chat_stream_failed", error=str(exc), user=current_user.get("username"))
-            yield _sse_payload({"type": "error", "message": "问答失败，请稍后重试。"})
-            yield _sse_payload({"type": "done"})
+        finally:
+            if not producer.done():
+                producer.cancel()
+            with suppress(asyncio.CancelledError):
+                await producer
 
     headers = {
-        "Cache-Control": "no-cache",
+        "Cache-Control": "no-cache, no-transform",
         "Connection": "keep-alive",
         "X-Accel-Buffering": "no",
     }
