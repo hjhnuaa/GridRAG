@@ -8,28 +8,50 @@ import {
   PlusOutlined,
   SendOutlined
 } from "@ant-design/icons";
-import { Button, Drawer, Empty, Input, List, Popconfirm, Select, Space, Spin, Switch, Tag, Typography, message } from "antd";
+import {
+  Button,
+  Drawer,
+  Empty,
+  Input,
+  List,
+  Popconfirm,
+  Segmented,
+  Select,
+  Space,
+  Spin,
+  Switch,
+  Tag,
+  Typography,
+  message
+} from "antd";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useEffect, useRef, useState } from "react";
 
 import {
   clearSessionMemories,
+  clearScopedMemories,
   createChatSession,
   createMemory,
+  createScopedMemory,
   deleteChatSession,
   deleteMemory,
   fetchChatDebug,
   fetchChatHistory,
   fetchChatSessions,
-  fetchMemories
+  fetchMemories,
+  fetchScopedMemories
 } from "../../api/chat";
 import { ChatWindow } from "../../components/ChatWindow/ChatWindow";
 import { RagDebugPanel } from "../../components/RagDebugPanel/RagDebugPanel";
 import { useChatStream } from "../../hooks/useChatStream";
 import { useChatStore } from "../../stores/chatStore";
-import type { ChatAskRequest, ChatSessionSummary, LocalSessionSummary } from "../../types/chat";
+import type { ChatAskRequest, ChatSessionSummary, LocalSessionSummary, MemoryItem, MemoryScope } from "../../types/chat";
 import { formatDateTime } from "../../utils/presenters";
+
+type MemoryMode = "session" | "global";
+
+const GLOBAL_MEMORY_SCOPE: MemoryScope = "global";
 
 const docTypeOptions = [
   { label: "政策文件", value: "policy" },
@@ -59,6 +81,20 @@ function toLocalSession(item: ChatSessionSummary): LocalSessionSummary {
   };
 }
 
+function getMemoryScopeLabel(item: MemoryItem): string {
+  const scope = typeof item.metadata.scope === "string" ? item.metadata.scope : "session";
+  const labels: Record<string, string> = {
+    organization: "组织",
+    project: "项目",
+    personal: "个人",
+    local: "本地",
+    global: "全局",
+    auto: "自动",
+    session: "会话"
+  };
+  return labels[scope] ?? "会话";
+}
+
 export function ChatPage(): JSX.Element {
   const {
     currentSessionId,
@@ -76,6 +112,7 @@ export function ChatPage(): JSX.Element {
   const [enableWebSearch, setEnableWebSearch] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
+  const [memoryMode, setMemoryMode] = useState<MemoryMode>("session");
   const [memoryQuery, setMemoryQuery] = useState("");
   const [memoryContent, setMemoryContent] = useState("");
   const sendingRef = useRef(false);
@@ -136,30 +173,36 @@ export function ChatPage(): JSX.Element {
     mutationFn: (payload: ChatAskRequest) => fetchChatDebug(payload)
   });
   const memoryQueryResult = useQuery({
-    queryKey: ["memories", currentSessionId, memoryQuery],
-    queryFn: () => fetchMemories(currentSessionId, memoryQuery),
-    enabled: Boolean(currentSessionId) && memoryOpen
+    queryKey: ["memories", memoryMode, currentSessionId, memoryQuery],
+    queryFn: () =>
+      memoryMode === "global"
+        ? fetchScopedMemories(GLOBAL_MEMORY_SCOPE, memoryQuery)
+        : fetchMemories(currentSessionId, memoryQuery),
+    enabled: memoryOpen && (memoryMode === "global" || Boolean(currentSessionId))
   });
   const createMemoryMutation = useMutation({
-    mutationFn: (content: string) => createMemory(currentSessionId, content),
-    onSuccess: () => {
+    mutationFn: ({ content, mode }: { content: string; mode: MemoryMode }) =>
+      mode === "global" ? createScopedMemory(GLOBAL_MEMORY_SCOPE, content) : createMemory(currentSessionId, content),
+    onSuccess: (_, variables) => {
       setMemoryContent("");
-      void queryClient.invalidateQueries({ queryKey: ["memories", currentSessionId] });
-      message.success("记忆已保存。");
+      void queryClient.invalidateQueries({ queryKey: ["memories", variables.mode] });
+      message.success(variables.mode === "global" ? "全局记忆已保存。" : "会话记忆已保存。");
     }
   });
   const deleteMemoryMutation = useMutation({
     mutationFn: (memoryId: string) => deleteMemory(memoryId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["memories", currentSessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["memories", memoryMode] });
       message.success("记忆已删除。");
     }
   });
   const clearMemoriesMutation = useMutation({
-    mutationFn: (sessionId: string) => clearSessionMemories(sessionId),
-    onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: ["memories", result.session_id] });
-      message.success(`已清空 ${result.deleted} 条记忆。`);
+    mutationFn: ({ mode, sessionId }: { mode: MemoryMode; sessionId: string }) =>
+      mode === "global" ? clearScopedMemories(GLOBAL_MEMORY_SCOPE) : clearSessionMemories(sessionId),
+    onSuccess: (result, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["memories", variables.mode] });
+      const label = variables.mode === "global" ? "全局记忆" : "会话记忆";
+      message.success(`已清空 ${result.deleted} 条${label}。`);
     }
   });
   const deleteSessionMutation = useMutation({
@@ -244,18 +287,25 @@ export function ChatPage(): JSX.Element {
 
   const handleCreateMemory = async (): Promise<void> => {
     const content = memoryContent.trim();
-    if (!content || !currentSessionId) {
+    if (!content || (memoryMode === "session" && !currentSessionId)) {
       return;
     }
-    await createMemoryMutation.mutateAsync(content);
+    await createMemoryMutation.mutateAsync({ content, mode: memoryMode });
   };
 
   const handleClearMemories = async (): Promise<void> => {
-    if (!currentSessionId) {
+    if (memoryMode === "session" && !currentSessionId) {
       return;
     }
-    await clearMemoriesMutation.mutateAsync(currentSessionId);
+    await clearMemoriesMutation.mutateAsync({ mode: memoryMode, sessionId: currentSessionId });
   };
+
+  const isGlobalMemory = memoryMode === "global";
+  const memorySearchPlaceholder = isGlobalMemory ? "搜索全局记忆" : "搜索当前会话记忆";
+  const memoryInputPlaceholder = isGlobalMemory
+    ? "写入一条跨会话生效的全局记忆，例如：默认先按政策文件给出处理依据。"
+    : "手动写入一条当前会话记忆，例如：本次对话重点关注低保申请材料。";
+  const memoryEmptyDescription = memoryQuery ? "没有匹配的记忆" : isGlobalMemory ? "暂无全局记忆" : "当前会话暂无记忆";
 
   return (
     <div className="page-shell chat-page-shell">
@@ -406,20 +456,32 @@ export function ChatPage(): JSX.Element {
         <RagDebugPanel data={debugMutation.data} loading={debugMutation.isPending} />
       </Drawer>
 
-      <Drawer width={640} title="当前会话记忆" open={memoryOpen} onClose={() => setMemoryOpen(false)}>
+      <Drawer width={680} title="记忆管理" open={memoryOpen} onClose={() => setMemoryOpen(false)}>
         <Space direction="vertical" size={16} style={{ width: "100%" }}>
           <div className="glass-card" style={{ padding: 16 }}>
             <Space direction="vertical" size={12} style={{ width: "100%" }}>
+              <Segmented
+                block
+                value={memoryMode}
+                options={[
+                  { label: "当前会话", value: "session" },
+                  { label: "全局记忆", value: "global" }
+                ]}
+                onChange={(value) => {
+                  setMemoryMode(value as MemoryMode);
+                  setMemoryQuery("");
+                }}
+              />
               <Input.Search
                 allowClear
                 value={memoryQuery}
-                placeholder="搜索当前会话记忆"
+                placeholder={memorySearchPlaceholder}
                 onChange={(event) => setMemoryQuery(event.target.value)}
               />
               <Input.TextArea
                 value={memoryContent}
                 autoSize={{ minRows: 3, maxRows: 6 }}
-                placeholder="手动写入一条长期记忆，例如：以后默认优先按政策文件回答。"
+                placeholder={memoryInputPlaceholder}
                 onChange={(event) => setMemoryContent(event.target.value)}
               />
               <Space wrap>
@@ -427,13 +489,13 @@ export function ChatPage(): JSX.Element {
                   type="primary"
                   icon={<PlusOutlined />}
                   loading={createMemoryMutation.isPending}
-                  disabled={!memoryContent.trim() || !currentSessionId}
+                  disabled={!memoryContent.trim() || (memoryMode === "session" && !currentSessionId)}
                   onClick={() => void handleCreateMemory()}
                 >
                   保存记忆
                 </Button>
                 <Popconfirm
-                  title="清空当前会话记忆？"
+                  title={isGlobalMemory ? "清空全部全局记忆？" : "清空当前会话记忆？"}
                   okText="清空"
                   cancelText="取消"
                   okButtonProps={{ danger: true }}
@@ -470,6 +532,7 @@ export function ChatPage(): JSX.Element {
                   <List.Item.Meta
                     title={
                       <Space wrap>
+                        <Tag color={isGlobalMemory ? "green" : "geekblue"}>{getMemoryScopeLabel(item)}</Tag>
                         <Tag color={item.memory_type === "auto" ? "blue" : "volcano"}>{item.memory_type}</Tag>
                         <Typography.Text type="secondary">使用 {item.usage_count} 次</Typography.Text>
                       </Space>
@@ -485,7 +548,7 @@ export function ChatPage(): JSX.Element {
               )}
             />
           ) : (
-            <Empty description={memoryQuery ? "没有匹配的记忆" : "当前会话暂无记忆"} />
+            <Empty description={memoryEmptyDescription} />
           )}
         </Space>
       </Drawer>

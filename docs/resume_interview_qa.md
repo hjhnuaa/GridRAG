@@ -35,7 +35,7 @@ GridRAG：基于 RAG 的网格员智能管理与服务辅助系统
 
 问答链路中，用户问题进入 FastAPI 后会保存会话历史并加载相关长期记忆。检索侧同时使用 Chroma 向量检索和 BM25 关键词检索，解决语义召回和精确关键词召回各自的短板。两路结果通过 RRF 按排名融合，再由 BGE Reranker 重排。相关性不足时不强行回答，而是提示知识库依据不足。生成侧使用 Jinja2 Prompt，把本地知识片段、分层记忆和可选联网搜索结果注入模型，并要求模型用 `[1]`、`[W1]` 这类标记标注来源。后端会根据回答中的引用标记过滤来源卡片。
 
-工程上，前端用 React、Ant Design、TanStack Query 和 Zustand，实现问答窗口、会话切换、RAG Debug、知识库上传和治理看板。后端按 API 层、service 层、RAG 层、ingest 层拆分，使用 SQLAlchemy Async、Redis、Celery、Chroma、LangChain 和 Qwen。项目还实现了分层长期记忆，支持组织、项目、个人、本地、自动经验和会话记忆，并用 key 做覆盖去重，避免上下文膨胀。
+工程上，前端用 React、Ant Design、TanStack Query 和 Zustand，实现问答窗口、会话切换、RAG Debug、知识库上传和治理看板。后端按 API 层、service 层、RAG 层、ingest 层拆分，使用 SQLAlchemy Async、Redis、Celery、Chroma、LangChain 和 Qwen。项目还实现了分层长期记忆，支持组织、项目、个人、本地、全局、自动经验和会话记忆，并用 key 做覆盖去重，避免上下文膨胀。
 
 ## 项目架构怎么讲
 
@@ -141,12 +141,13 @@ Prompt 不是简单写一句“请回答问题”。我把业务规则写进模�
 - `project`：项目级规则。
 - `personal`：个人偏好。
 - `local`：本地环境约定。
+- `global`：跨会话生效的全局手动记忆。
 - `auto`：自动沉淀的偏好、项目模式和调试经验。
 - `session`：当前会话记忆。
 
 面试表达：
 
-这个模块参考了 Claude Code 的记忆机制。人写的稳定规则放在不同 scope 中，越具体优先级越高；AI 自动记忆只补充偏好和经验，不覆盖正式规则。同一主题可以设置 key，注入 Prompt 前做覆盖和去重，避免每次都把重复内容塞进上下文。
+这个模块参考了 Claude Code 的记忆机制。人写的稳定规则放在不同 scope 中，越具体优先级越高；全局记忆用于保存跨会话都要生效的辖区背景、用户习惯或长期偏好；AI 自动记忆只补充偏好和经验，不覆盖正式规则。同一主题可以设置 key，注入 Prompt 前做覆盖和去重，避免每次都把重复内容塞进上下文。
 
 ## 面试官高频追问
 
@@ -398,7 +399,7 @@ GridRAG 的 `ChatHistory` 就是按这个思路设计，并对 `session_id + cre
 
 项目关联：
 
-GridRAG 的分层记忆机制复用了 `metadata_json` 存 scope、key 和 category，没有新增迁移。
+GridRAG 的分层记忆机制复用了 `metadata_json` 存 scope、key 和 category；为了支持 `__gridrag_memory_scope__:organization`、`__gridrag_memory_scope__:global` 这类保留 scope id，新增迁移把 `chat_memories.session_id` 放宽到 64 位。
 
 ## Prompt 工程问题
 
@@ -444,7 +445,7 @@ GridRAG 新增了 `test_prompts.py`，测试问答、事件填报和走访建议
 
 回答模板：
 
-我把记忆拆成规则层和经验层。组织、项目、个人、本地规则是人写的，自动记忆只沉淀偏好和经验。同主题用 key 覆盖去重，注入 Prompt 前压缩成带标签片段。同时 Prompt 明确记忆不能作为政策依据，避免记忆污染正式问答。
+我把记忆拆成规则层、全局层和经验层。组织、项目、个人、本地规则是人写的，全局记忆跨会话生效，自动记忆只沉淀偏好和经验。同主题用 key 覆盖去重，注入 Prompt 前压缩成带标签片段。同时 Prompt 明确记忆不能作为政策依据，避免记忆污染正式问答。
 
 ### 难点 4：文档入库和业务数据一致性
 

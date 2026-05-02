@@ -35,7 +35,7 @@ def test_qa_prompt_renders_grounding_and_citation_rules() -> None:
 
     assert "本地知识库参考资料是正式依据" in prompt
     assert "规则与记忆上下文只能作为回答风格" in prompt
-    assert "组织规则 < 项目规则 < 个人偏好 < 本地规则 < 自动经验 < 会话记忆" in prompt
+    assert "组织规则 < 项目规则 < 个人偏好 < 本地规则 < 全局记忆 < 自动经验 < 会话记忆" in prompt
     assert "每个关键事实、条件、流程、时限或建议句末必须标注来源编号" in prompt
     assert "类型：policy" in prompt
     assert "低保需要什么材料？" in prompt

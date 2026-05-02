@@ -9,6 +9,7 @@ import type {
   ChatSessionSummary,
   MemoryDeleteResponse,
   MemoryItem,
+  MemoryScope,
   MemorySearchResponse
 } from "../types/chat";
 import type { PaginatedData } from "../types/common";
@@ -168,10 +169,35 @@ export async function createMemory(sessionId: string, content: string): Promise<
   );
 }
 
+export async function fetchScopedMemories(scope: MemoryScope, query = ""): Promise<MemorySearchResponse> {
+  return unwrapResponse(
+    apiClient.get(`/memory/scopes/${scope}`, {
+      params: {
+        query,
+        limit: 50
+      }
+    })
+  );
+}
+
+export async function createScopedMemory(scope: MemoryScope, content: string): Promise<MemoryItem> {
+  return unwrapResponse(
+    apiClient.post(`/memory/scopes/${scope}`, {
+      content,
+      memory_type: "manual",
+      metadata: { source: "manual", scope }
+    })
+  );
+}
+
 export async function deleteMemory(memoryId: string): Promise<{ deleted: boolean }> {
   return unwrapResponse(apiClient.delete(`/memory/${memoryId}`));
 }
 
 export async function clearSessionMemories(sessionId: string): Promise<MemoryDeleteResponse> {
   return unwrapResponse(apiClient.delete(`/memory/sessions/${sessionId}`));
+}
+
+export async function clearScopedMemories(scope: MemoryScope): Promise<MemoryDeleteResponse> {
+  return unwrapResponse(apiClient.delete(`/memory/scopes/${scope}`));
 }

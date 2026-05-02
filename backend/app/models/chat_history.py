@@ -63,7 +63,7 @@ class ChatMemory(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "chat_memories"
     __table_args__ = (Index("ix_chat_memories_session_id_updated_at", "session_id", "updated_at"),)
 
-    session_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    session_id: Mapped[str] = mapped_column(String(64), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     memory_type: Mapped[str] = mapped_column(String(32), nullable=False, default="note")
     metadata_json: Mapped[dict[str, Any]] = mapped_column(nullable=False, default=dict)

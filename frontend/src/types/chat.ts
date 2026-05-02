@@ -89,6 +89,8 @@ export interface MemoryItem {
   updated_at: string;
 }
 
+export type MemoryScope = "organization" | "project" | "personal" | "local" | "global" | "auto";
+
 export interface MemorySearchResponse {
   items: MemoryItem[];
 }

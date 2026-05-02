@@ -34,6 +34,7 @@ def test_render_memory_context_applies_scope_override_by_key() -> None:
             _memory(MemoryScope.ORGANIZATION, "回答保持正式书面语。", key="tone"),
             _memory(MemoryScope.PROJECT, "回答使用简洁口语化表达。", key="tone"),
             _memory(MemoryScope.LOCAL, "本地调试默认先看 RAG Debug。", key="debug"),
+            _memory(MemoryScope.GLOBAL, "所有新会话默认保留网格员辖区背景。", key="area_context"),
             _memory(MemoryScope.AUTO, "低保问题优先核对材料清单。", memory_type="auto"),
             _memory(MemoryScope.SESSION, "当前用户负责朝阳社区。", memory_type="manual"),
         ]
@@ -42,6 +43,7 @@ def test_render_memory_context_applies_scope_override_by_key() -> None:
     assert not any("回答保持正式书面语" in item for item in snippets)
     assert "项目规则：回答使用简洁口语化表达。" in snippets
     assert "本地规则：本地调试默认先看 RAG Debug。" in snippets
+    assert "全局记忆：所有新会话默认保留网格员辖区背景。" in snippets
     assert "自动经验：低保问题优先核对材料清单。" in snippets
     assert "会话记忆：当前用户负责朝阳社区。" in snippets
 

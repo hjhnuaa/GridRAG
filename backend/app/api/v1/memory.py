@@ -27,6 +27,7 @@ from app.services.memory import (
     normalize_memory_scope,
     render_memory_context,
     save_memory,
+    scoped_session_id,
     to_memory_item,
 )
 
@@ -123,6 +124,18 @@ async def clear_session_memories(
     return success_response(data)
 
 
+@router.delete("/scopes/{scope}")
+async def clear_scoped_memories(
+    scope: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> ApiResponse[MemoryDeleteResponse]:
+    """Delete all memory items stored in one layered scope."""
+
+    normalized_scope = _require_scoped_memory_scope(scope)
+    data = await delete_session_memories(session=session, session_id=scoped_session_id(normalized_scope))
+    return success_response(data)
+
+
 @router.delete("/{memory_id}")
 async def remove_memory(
     memory_id: str,
@@ -139,7 +152,7 @@ def _require_scoped_memory_scope(scope: str) -> MemoryScope:
 
     normalized = normalize_memory_scope(scope)
     if normalized is MemoryScope.SESSION:
-        raise AppError("不支持的记忆层级。可选：organization、project、personal、local、auto。", code=4001)
+        raise AppError("不支持的记忆层级。可选：organization、project、personal、local、global、auto。", code=4001)
     if normalized not in (*HUMAN_RULE_SCOPES, MemoryScope.AUTO):
         raise AppError("不支持的记忆层级。", code=4001)
     return normalized

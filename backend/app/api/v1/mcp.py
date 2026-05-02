@@ -145,7 +145,7 @@ def _tool_definitions() -> list[dict[str, Any]]:
                     "session_id": {"type": "string", "description": "聊天会话 ID；写 scope 记忆时可省略"},
                     "scope": {
                         "type": "string",
-                        "description": "可选分层 scope：organization、project、personal、local、auto",
+                        "description": "可选分层 scope：organization、project、personal、local、global、auto",
                     },
                     "key": {"type": "string", "description": "可选覆盖键；同 scope 同 key 会更新旧记忆"},
                     "content": {"type": "string", "description": "需要记住的内容"},
@@ -164,7 +164,7 @@ def _tool_definitions() -> list[dict[str, Any]]:
                     "session_id": {"type": "string", "description": "聊天会话 ID"},
                     "scope": {
                         "type": "string",
-                        "description": "可选分层 scope：organization、project、personal、local、auto",
+                        "description": "可选分层 scope：organization、project、personal、local、global、auto",
                     },
                     "query": {"type": "string", "description": "检索词，可为空"},
                     "limit": {"type": "integer", "minimum": 1, "maximum": 20},

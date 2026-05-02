@@ -38,6 +38,7 @@ class MemoryScope(StrEnum):
     PROJECT = "project"
     PERSONAL = "personal"
     LOCAL = "local"
+    GLOBAL = "global"
     AUTO = "auto"
     SESSION = "session"
 
@@ -47,6 +48,7 @@ HUMAN_RULE_SCOPES = (
     MemoryScope.PROJECT,
     MemoryScope.PERSONAL,
     MemoryScope.LOCAL,
+    MemoryScope.GLOBAL,
 )
 
 MEMORY_SCOPE_ORDER = (*HUMAN_RULE_SCOPES, MemoryScope.AUTO, MemoryScope.SESSION)
@@ -56,6 +58,7 @@ MEMORY_SCOPE_LABELS = {
     MemoryScope.PROJECT: "项目规则",
     MemoryScope.PERSONAL: "个人偏好",
     MemoryScope.LOCAL: "本地规则",
+    MemoryScope.GLOBAL: "全局记忆",
     MemoryScope.AUTO: "自动经验",
     MemoryScope.SESSION: "会话记忆",
 }
@@ -267,13 +270,7 @@ async def list_memories(
     settings = get_settings()
     effective_limit = max(1, min(limit or settings.memory_max_items, settings.memory_max_items))
     if query.strip():
-        return await find_relevant_memories(
-            session,
-            session_id=session_id,
-            query=query,
-            limit=effective_limit,
-            mark_used=False,
-        )
+        return await _search_memories_in_session(session, session_id=session_id, query=query, limit=effective_limit)
     result = await session.execute(
         select(ChatMemory)
         .where(ChatMemory.session_id == session_id)
@@ -292,6 +289,29 @@ async def list_scoped_memories(
     """List memories stored in a reserved scope layer."""
 
     return await list_memories(session, session_id=scoped_session_id(scope), query=query, limit=limit)
+
+
+async def _search_memories_in_session(
+    session: AsyncSession,
+    session_id: str,
+    query: str,
+    limit: int,
+) -> list[ChatMemory]:
+    """Search memory rows within one exact session or reserved scope id."""
+
+    settings = get_settings()
+    result = await session.execute(
+        select(ChatMemory)
+        .where(ChatMemory.session_id == session_id)
+        .order_by(ChatMemory.updated_at.desc())
+        .limit(settings.memory_max_items)
+    )
+    ranked = sorted(
+        ((memory, _memory_score(query, memory.content)) for memory in result.scalars().all()),
+        key=lambda item: (item[1], item[0].updated_at),
+        reverse=True,
+    )
+    return [memory for memory, score in ranked if score > 0][:limit]
 
 
 async def delete_memory(session: AsyncSession, memory_id: str) -> bool:
