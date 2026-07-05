@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.api.v1.chat import _sse_heartbeat, _sse_payload
+from app.api.sse import _sse_heartbeat, _sse_payload
 
 
 def test_sse_payload_uses_named_event_and_compact_json() -> None:

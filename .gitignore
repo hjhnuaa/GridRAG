@@ -55,6 +55,10 @@ pnpm-debug.log*
 logs/
 storage/
 data/
+!data/
+data/*
+!data/eval/
+!data/eval/**
 *.log
 *.pid
 *.pid.lock

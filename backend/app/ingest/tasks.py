@@ -26,6 +26,7 @@ from app.services.documents import (
 
 logger = get_logger(__name__)
 settings = get_settings()
+EMPTY_DOCUMENT_ERROR = "文档未解析到可入库文本，请检查文件内容或格式。"
 
 celery_app = Celery("gridrag", broker=settings.celery_broker_url, backend=settings.celery_result_backend)
 celery_app.conf.task_always_eager = settings.celery_task_always_eager
@@ -50,6 +51,8 @@ async def ingest_document(document_id: str) -> None:
                 doc_type=str(document.doc_type),
             )
             chunks = chunker.chunk(parsed_document)
+            if not chunks:
+                raise ValueError(EMPTY_DOCUMENT_ERROR)
             embeddings = await embedder.embed_texts([chunk.text for chunk in chunks])
             orm_chunks = [
                 DocumentChunk(

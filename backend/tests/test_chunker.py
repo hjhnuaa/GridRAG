@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.rag.chunker import DocumentChunker
-from app.rag.pipeline import (
+from app.rag.sources import (
     build_chunk_sources,
     build_web_sources,
     filter_chunk_sources_by_citation,
