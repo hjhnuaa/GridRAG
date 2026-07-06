@@ -111,6 +111,7 @@ async def save_chat_message(
     role: str,
     content: str,
     sources: list[dict[str, str | int | float | None]] | None = None,
+    status: str = "complete",
 ) -> ChatHistory:
     """Persist a chat message and update its session metadata."""
 
@@ -121,7 +122,14 @@ async def save_chat_message(
     chat_session.message_count += 1
     chat_session.updated_at = now
 
-    message = ChatHistory(session_id=session_id, role=role, content=content, sources=sources, created_at=now)
+    message = ChatHistory(
+        session_id=session_id,
+        role=role,
+        content=content,
+        sources=sources,
+        status=status,
+        created_at=now,
+    )
     session.add(message)
     await session.commit()
     await session.refresh(message)
@@ -148,6 +156,7 @@ async def list_chat_history(
                 role=item.role,
                 content=item.content,
                 sources=item.sources,  # type: ignore[arg-type]
+                status=item.status,
                 created_at=item.created_at.isoformat(),
             )
             for item in messages

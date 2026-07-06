@@ -115,7 +115,10 @@ export function ChatPage(): JSX.Element {
   const [memoryMode, setMemoryMode] = useState<MemoryMode>("session");
   const [memoryQuery, setMemoryQuery] = useState("");
   const [memoryContent, setMemoryContent] = useState("");
+  const [guidance, setGuidance] = useState("");
   const sendingRef = useRef(false);
+  const guidingRef = useRef(false);
+  const activeBaseQuestionRef = useRef("");
   const queryClient = useQueryClient();
 
   const createSessionMutation = useMutation({
@@ -168,7 +171,15 @@ export function ChatPage(): JSX.Element {
 
   const messages = currentSessionId ? messagesBySession[currentSessionId] ?? [] : [];
   const sessionGroups = groupSessions(sessions);
-  const { sendQuestion, streaming, streamingMessageId, streamStatus, cancel } = useChatStream(currentSessionId);
+  const {
+    sendQuestion,
+    guideAnswer,
+    getActiveAnswerContent,
+    streaming,
+    streamingMessageId,
+    streamStatus,
+    cancel
+  } = useChatStream(currentSessionId);
   const debugMutation = useMutation({
     mutationFn: (payload: ChatAskRequest) => fetchChatDebug(payload)
   });
@@ -226,11 +237,13 @@ export function ChatPage(): JSX.Element {
     sendingRef.current = true;
 
     try {
+      activeBaseQuestionRef.current = nextQuestion;
       upsertMessage(currentSessionId, {
         id: crypto.randomUUID(),
         session_id: currentSessionId,
         role: "user",
         content: nextQuestion,
+        status: "complete",
         created_at: new Date().toISOString()
       });
 
@@ -249,6 +262,40 @@ export function ChatPage(): JSX.Element {
       void queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
     } finally {
       sendingRef.current = false;
+    }
+  };
+
+  const handleGuide = async (): Promise<void> => {
+    const instruction = guidance.trim();
+    if (!instruction || !currentSessionId || !streaming || guidingRef.current) {
+      return;
+    }
+    const partialAnswer = getActiveAnswerContent();
+    const baseQuestion =
+      activeBaseQuestionRef.current ||
+      [...messages].reverse().find((item) => item.role === "user" && !item.content.startsWith("引导回答："))?.content ||
+      question.trim();
+    if (!baseQuestion) {
+      message.warning("未找到可继续引导的原始问题。");
+      return;
+    }
+    guidingRef.current = true;
+    setGuidance("");
+    try {
+      await guideAnswer({
+        session_id: currentSessionId,
+        instruction,
+        base_question: baseQuestion,
+        partial_answer: partialAnswer,
+        filters: {
+          doc_types: docTypes,
+          enable_web_search: enableWebSearch
+        }
+      });
+      void queryClient.invalidateQueries({ queryKey: ["chat-history", currentSessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
+    } finally {
+      guidingRef.current = false;
     }
   };
 
@@ -418,6 +465,32 @@ export function ChatPage(): JSX.Element {
           </div>
 
           <div className="glass-card chat-composer">
+            {streaming ? (
+              <div className="chat-guidance-box">
+                <Input.TextArea
+                  value={guidance}
+                  onChange={(event) => setGuidance(event.target.value)}
+                  autoSize={{ minRows: 1, maxRows: 4 }}
+                  style={{ resize: "none" }}
+                  placeholder="输出途中引导，例如：先别展开流程，先按材料清单回答。"
+                  onKeyDown={(event) => {
+                    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                      void handleGuide();
+                    }
+                  }}
+                />
+                <Button
+                  type="primary"
+                  ghost
+                  icon={<SendOutlined />}
+                  disabled={!guidance.trim()}
+                  loading={guidingRef.current}
+                  onClick={() => void handleGuide()}
+                >
+                  引导回答
+                </Button>
+              </div>
+            ) : null}
             <Input.TextArea
               value={question}
               onChange={(event) => setQuestion(event.target.value)}

@@ -1,0 +1,20 @@
+请根据会话历史，把用户当前问题改写成适合知识库检索的独立问题。
+
+要求：
+- 如果当前问题包含“刚才那个”“继续”“它”“这个”等指代，要结合会话历史补全对象。
+- 只改写检索问题，不回答问题。
+- 不要添加会话中没有出现的新事实。
+- 如果不需要改写，原样输出当前问题。
+- 只输出一行改写后的问题，不要解释。
+
+{% if conversation_summary %}
+会话摘要：
+{{ conversation_summary }}
+
+{% endif %}
+最近会话：
+{% for message in conversation_context %}
+- {{ message }}
+{% endfor %}
+
+当前问题：{{ question }}

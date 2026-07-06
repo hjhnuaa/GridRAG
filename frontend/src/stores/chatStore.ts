@@ -16,6 +16,7 @@ interface ChatState {
   hydrateHistory: (sessionId: string, messages: ChatMessage[]) => void;
   upsertMessage: (sessionId: string, message: ChatMessage) => void;
   patchAssistantMessage: (sessionId: string, messageId: string, content: string) => void;
+  markMessageInterrupted: (sessionId: string, messageId: string) => void;
   attachSources: (sessionId: string, messageId: string, sources: ChatMessage["sources"]) => void;
   clearCurrentView: (sessionId: string) => void;
   deleteSession: (sessionId: string) => string;
@@ -147,6 +148,15 @@ export const useChatStore = create<ChatState>()(
             ...state.messagesBySession,
             [sessionId]: (state.messagesBySession[sessionId] ?? []).map((item) =>
               item.id === messageId ? { ...item, content } : item
+            )
+          }
+        })),
+      markMessageInterrupted: (sessionId, messageId) =>
+        set((state) => ({
+          messagesBySession: {
+            ...state.messagesBySession,
+            [sessionId]: (state.messagesBySession[sessionId] ?? []).map((item) =>
+              item.id === messageId ? { ...item, status: "interrupted" } : item
             )
           }
         })),

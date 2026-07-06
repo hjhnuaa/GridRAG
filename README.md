@@ -223,8 +223,12 @@ Prompt 模板集中在 `backend/prompts`。问答模板强调证据优先级、�
 │  │  └─ router.tsx           # 路由定义
 │  ├─ package.json
 │  └─ vite.config.ts
-├─ demo/                      # 可直接上传测试的轻量知识文档
-├─ skills/                    # 按 RAG 能力整理的中文说明文档
+├─ data/
+│  ├─ eval/                   # RAG 评估用例和标准数据
+│  └─ samples/                # 轻量演示样例，可直接用于本地上传测试
+├─ docs/                      # 项目文档、评估报告和答辩材料
+│  └─ evaluation/             # RAG 评估输出
+├─ skills/                    # RAG 能力文档库，按检索、入库、生成等能力分组
 │  ├─ retrieval/              # 查询理解、混合检索、重排
 │  ├─ indexing/               # 文档解析、分块、嵌入、索引构建
 │  ├─ knowledge-base/         # 知识来源、语料管理、同步、质量和版本
@@ -233,9 +237,9 @@ Prompt 模板集中在 `backend/prompts`。问答模板强调证据优先级、�
 │  ├─ observability/          # 日志、链路追踪、监控、告警和面板
 │  ├─ integration/            # API、Agent、工具、工作流和部署
 │  └─ README.md               # RAG 能力结构总览
-├─ scripts/                   # 环境准备脚本
-├─ storage/                   # 上传文件和 Chroma 持久化目录，默认不入库
-├─ logs/                      # 运行日志，默认不入库
+├─ scripts/                   # 仓库级环境准备和维护脚本
+├─ storage/                   # 本地上传文件和 Chroma 持久化目录，运行产物默认不入库
+├─ logs/                      # 本地运行日志，运行产物默认不入库
 ├─ .env.example               # 环境变量模板
 ├─ environment.yml            # Conda 环境定义
 ├─ skills-index.md            # RAG 能力文档索引
@@ -342,10 +346,10 @@ python scripts/seed_demo_data.py
 仓库包含一个轻量测试文档：
 
 ```text
-demo/low_income_policy_demo.txt
+data/samples/knowledge/low_income_policy_demo.txt
 ```
 
-可在前端“知识库”页面上传，文档类型建议选择 `policy`。如果本地存在完整 `data/knowledge/` 演示目录，也可以按 `policy / manual / ticket / case` 分类上传。
+可在前端“知识库”页面上传，文档类型建议选择 `policy`。`data/eval/` 用于评估用例，`data/samples/` 用于轻量演示样例；如果本地存在完整 `data/knowledge/` 演示目录，也可以按 `policy / manual / ticket / case` 分类上传。
 
 ## 环境变量
 
@@ -655,6 +659,9 @@ http://127.0.0.1:8000/api/v1/web-search/status?probe=true
 
 ## 维护约定
 
+- 根目录只保留主要入口、仓库级脚本和说明文档；演示样例放入 `data/samples`，评估数据放入 `data/eval`。
+- `storage/`、`logs/`、`dump.rdb` 属于本地运行产物，不参与项目结构展示。
+- `skills/` 是 RAG 能力文档库，暂保留根目录，避免与项目文档混杂。
 - 页面功能优先放在 `frontend/src/pages`，可复用 UI 放在 `frontend/src/components`。
 - 前端接口统一放在 `frontend/src/api`，类型放在 `frontend/src/types`。
 - 后端接口只做请求响应编排，业务逻辑放在 `backend/app/services`。

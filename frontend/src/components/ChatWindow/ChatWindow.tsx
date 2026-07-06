@@ -107,6 +107,9 @@ export function ChatWindow({ messages, streamingMessageId, streamStatus }: ChatW
                             ) : (
                               <div className="chat-stream-placeholder">{streamStatusLabel(streamStatus)}</div>
                             )}
+                            {message.status === "interrupted" ? (
+                              <div className="chat-interrupted-label">已中断，按新的引导继续回答</div>
+                            ) : null}
                             {isStreamingMessage ? <span className="chat-stream-cursor" aria-hidden="true" /> : null}
                           </div>
                         ) : (

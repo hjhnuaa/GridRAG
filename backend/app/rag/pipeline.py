@@ -29,6 +29,7 @@ from app.rag.types import Chunk
 from app.schemas.chat import ChatDebugResponse, RetrievalCandidate, SourceItem
 from app.schemas.web_search import WebSearchResult
 from app.services import chat as chat_service
+from app.services import conversation as conversation_service
 from app.services import memory as memory_service
 from app.services.web_search import WebSearchProviderError, WebSearchService
 
@@ -60,14 +61,34 @@ class RAGPipeline:
         question: str,
         doc_types: list[str] | None = None,
         enable_web_search: bool | None = None,
+        guidance_instruction: str | None = None,
+        partial_answer: str | None = None,
     ) -> AsyncGenerator[dict[str, object], None]:
         """Stream an answer as SSE-ready dictionaries."""
 
-        normalized_query = self.rewrite_query(question)
+        conversation_context = await conversation_service.build_conversation_context(
+            session,
+            session_id,
+            exclude_latest_user=True,
+        )
+        query_seed = question if not guidance_instruction else f"{question}\n补充引导：{guidance_instruction}"
+        normalized_query = await self.rewrite_query(
+            query_seed,
+            conversation_context=conversation_context.snippets,
+            conversation_summary=conversation_context.summary,
+        )
         memories = await memory_service.find_relevant_memories(session, session_id, normalized_query)
         memory_snippets = memory_service.render_memory_context(memories)
         should_search_web = self._should_search_web(enable_web_search)
-        cache_key = self._cache_key(normalized_query, doc_types, should_search_web, memory_snippets)
+        cache_key = self._cache_key(
+            normalized_query,
+            doc_types,
+            should_search_web,
+            memory_snippets,
+            conversation_context.fingerprint,
+            guidance_instruction=guidance_instruction,
+            partial_answer=partial_answer,
+        )
 
         # 缓存命中时仍然落一条助手消息，保证会话历史与用户看到的回复一致。
         cached = await self.cache.get_json(cache_key)
@@ -104,6 +125,10 @@ class RAGPipeline:
                     "qa_system.j2",
                     contexts=selected_chunks,
                     memories=memory_snippets,
+                    conversation_context=conversation_context.snippets,
+                    conversation_summary=conversation_context.summary,
+                    guidance_instruction=guidance_instruction or "",
+                    partial_answer=partial_answer or "",
                     web_results=web_results,
                     question=question,
                 )
@@ -120,6 +145,11 @@ class RAGPipeline:
                 yield {"type": "sources", "sources": serialized_sources}
                 yield {"type": "done"}
                 await chat_service.save_chat_message(session, session_id, "assistant", answer_text, serialized_sources)
+                await conversation_service.maybe_update_conversation_summary(
+                    session,
+                    session_id,
+                    generator=self.generator,
+                )
                 await self.cache.set_json(
                     cache_key,
                     {"answer": answer_text, "sources": serialized_sources},
@@ -155,7 +185,16 @@ class RAGPipeline:
     ) -> ChatDebugResponse:
         """Return a non-streaming debug payload of the RAG execution."""
 
-        rewritten_query = self.rewrite_query(question)
+        conversation_context = await conversation_service.build_conversation_context(
+            session,
+            session_id,
+            exclude_latest_user=False,
+        )
+        rewritten_query = await self.rewrite_query(
+            question,
+            conversation_context=conversation_context.snippets,
+            conversation_summary=conversation_context.summary,
+        )
         memories = (
             await memory_service.find_relevant_memories(session, session_id, rewritten_query, mark_used=False)
             if session_id
@@ -171,6 +210,10 @@ class RAGPipeline:
             "qa_system.j2",
             contexts=selected_chunks,
             memories=memory_snippets,
+            conversation_context=conversation_context.snippets,
+            conversation_summary=conversation_context.summary,
+            guidance_instruction="",
+            partial_answer="",
             web_results=web_results,
             question=question,
         )
@@ -186,14 +229,37 @@ class RAGPipeline:
             reranked_candidates=[RetrievalCandidate(**item.to_debug_dict()) for item in reranked],
             selected_sources=sources,
             memories=memory_snippets,
+            conversation_context=conversation_context.snippets,
+            conversation_summary=conversation_context.summary,
             web_results=build_web_sources(web_results),
         )
 
-    def rewrite_query(self, question: str) -> str:
-        """Normalize the query for retrieval."""
+    async def rewrite_query(
+        self,
+        question: str,
+        *,
+        conversation_context: list[str] | None = None,
+        conversation_summary: str | None = None,
+    ) -> str:
+        """Normalize or rewrite the query for retrieval."""
 
         normalized = re.sub(r"\s+", " ", question).strip()
-        return normalized
+        if not self.settings.rag_rewrite_query and not conversation_context and not conversation_summary:
+            return normalized
+        if not conversation_context and not conversation_summary:
+            return normalized
+        try:
+            prompt = self.generator.render_prompt(
+                "query_rewrite.j2",
+                question=normalized,
+                conversation_context=conversation_context or [],
+                conversation_summary=conversation_summary or "",
+            )
+            rewritten = re.sub(r"\s+", " ", await self.generator.generate_text(prompt)).strip()
+        except Exception as exc:
+            logger.warning("conversation_query_rewrite_failed", error=str(exc))
+            return normalized
+        return rewritten[:2000] if rewritten else normalized
 
     def _trim_context_chunks(self, chunks: list[Chunk]) -> list[Chunk]:
         """Limit the number of context chunks by an estimated token budget."""
@@ -282,6 +348,10 @@ class RAGPipeline:
         doc_types: list[str] | None,
         enable_web_search: bool,
         memories: list[str],
+        conversation_fingerprint: str = "",
+        *,
+        guidance_instruction: str | None = None,
+        partial_answer: str | None = None,
     ) -> str:
         """Generate a stable cache key."""
 
@@ -291,6 +361,9 @@ class RAGPipeline:
                 "doc_types": sorted(doc_types or []),
                 "enable_web_search": enable_web_search,
                 "memories": memories,
+                "conversation": hashlib.sha1(conversation_fingerprint.encode("utf-8")).hexdigest(),
+                "guidance_instruction": guidance_instruction or "",
+                "partial_answer": hashlib.sha1((partial_answer or "").encode("utf-8")).hexdigest(),
             },
             ensure_ascii=False,
         )

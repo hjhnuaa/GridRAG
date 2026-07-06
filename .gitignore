@@ -59,6 +59,8 @@ data/
 data/*
 !data/eval/
 !data/eval/**
+!data/samples/
+!data/samples/**
 *.log
 *.pid
 *.pid.lock

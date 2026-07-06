@@ -22,6 +22,16 @@ class ChatAskRequest(BaseSchema):
     filters: ChatFilters = Field(default_factory=ChatFilters)
 
 
+class ChatGuideRequest(BaseSchema):
+    """Guidance sent while a streamed answer is in progress."""
+
+    session_id: str
+    instruction: str = Field(min_length=1, max_length=1000)
+    base_question: str = Field(min_length=1, max_length=2000)
+    partial_answer: str = Field(default="", max_length=8000)
+    filters: ChatFilters = Field(default_factory=ChatFilters)
+
+
 class SourceItem(BaseSchema):
     """Citation returned with a grounded answer."""
 
@@ -44,6 +54,7 @@ class ChatMessage(BaseSchema):
     role: str
     content: str
     sources: list[SourceItem] | None = None
+    status: str = "complete"
     created_at: str
 
 
@@ -107,4 +118,6 @@ class ChatDebugResponse(BaseSchema):
     reranked_candidates: list[RetrievalCandidate]
     selected_sources: list[SourceItem]
     memories: list[str] = Field(default_factory=list)
+    conversation_context: list[str] = Field(default_factory=list)
+    conversation_summary: str | None = None
     web_results: list[SourceItem] = Field(default_factory=list)

@@ -15,7 +15,7 @@ from app.core.database import get_db_session
 from app.core.exceptions import AppError
 from app.core.logging import get_logger
 from app.rag.pipeline import RAGPipeline
-from app.schemas.chat import ChatAskRequest, ChatSessionCreateRequest, ChatSessionUpdateRequest
+from app.schemas.chat import ChatAskRequest, ChatGuideRequest, ChatSessionCreateRequest, ChatSessionUpdateRequest
 from app.schemas.common import ApiResponse, success_response
 from app.services.chat import (
     create_chat_session,
@@ -72,6 +72,59 @@ async def ask(
             request,
             produce_events(),
             task_name=f"chat-sse-{payload.session_id}",
+        ):
+            yield frame
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+@router.post("/guide")
+async def guide(
+    request: Request,
+    payload: ChatGuideRequest,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: dict[str, object] = Depends(get_current_user),
+    pipeline: RAGPipeline = Depends(get_rag_pipeline),
+) -> StreamingResponse:
+    """Interrupt the current answer and continue with user guidance."""
+
+    partial_answer = payload.partial_answer.strip()
+    if partial_answer:
+        await save_chat_message(session, payload.session_id, "assistant", partial_answer, [], status="interrupted")
+    guidance_message = f"引导回答：{payload.instruction.strip()}"
+    await save_chat_message(session, payload.session_id, "user", guidance_message)
+    await maybe_save_user_memory(session, payload.session_id, guidance_message)
+
+    async def event_stream() -> AsyncGenerator[str, None]:
+        """Yield guided SSE events from the RAG pipeline."""
+
+        async def produce_events() -> AsyncGenerator[SSEEvent, None]:
+            try:
+                async for event in pipeline.stream_answer(
+                    session=session,
+                    session_id=payload.session_id,
+                    question=payload.base_question,
+                    doc_types=payload.filters.doc_types,
+                    enable_web_search=payload.filters.enable_web_search,
+                    guidance_instruction=payload.instruction,
+                    partial_answer=partial_answer,
+                ):
+                    yield event
+            except asyncio.CancelledError:
+                raise
+            except AppError as exc:
+                logger.exception("chat_guidance_stream_app_error", error=exc.message, user=current_user.get("username"))
+                yield {"type": "error", "message": exc.message}
+                yield {"type": "done"}
+            except Exception as exc:
+                logger.exception("chat_guidance_stream_failed", error=str(exc), user=current_user.get("username"))
+                yield {"type": "error", "message": "引导续答失败，请稍后重试。"}
+                yield {"type": "done"}
+
+        async for frame in stream_sse_events(
+            request,
+            produce_events(),
+            task_name=f"chat-guide-sse-{payload.session_id}",
         ):
             yield frame
 

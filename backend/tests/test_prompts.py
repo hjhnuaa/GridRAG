@@ -29,16 +29,40 @@ def test_qa_prompt_renders_grounding_and_citation_rules() -> None:
         "qa_system.j2",
         contexts=[_chunk()],
         memories=["个人偏好：用户负责朝阳社区。"],
+        conversation_context=["用户：刚才说的低保材料有哪些？", "助手：需要身份证明。"],
+        conversation_summary="用户正在咨询低保申请。",
+        guidance_instruction="先按材料清单回答。",
+        partial_answer="低保申请需要准备",
         web_results=[],
         question="低保需要什么材料？",
     )
 
     assert "本地知识库参考资料是正式依据" in prompt
     assert "规则与记忆上下文只能作为回答风格" in prompt
+    assert "会话历史只能用于理解上下文" in prompt
+    assert "以下内容仅用于理解多轮对话和指代关系" in prompt
+    assert "用户正在咨询低保申请。" in prompt
+    assert "输出中用户引导" in prompt
+    assert "先按材料清单回答。" in prompt
     assert "组织规则 < 项目规则 < 个人偏好 < 本地规则 < 全局记忆 < 自动经验 < 会话记忆" in prompt
     assert "每个关键事实、条件、流程、时限或建议句末必须标注来源编号" in prompt
     assert "类型：policy" in prompt
     assert "低保需要什么材料？" in prompt
+
+
+def test_query_rewrite_prompt_renders_conversation_context() -> None:
+    """Query rewrite prompt should include history for pronoun resolution."""
+
+    prompt = PromptRenderer().render(
+        "query_rewrite.j2",
+        question="刚才那个还要什么材料？",
+        conversation_summary="用户正在咨询低保申请。",
+        conversation_context=["用户：低保怎么办？", "助手：先确认申请条件。"],
+    )
+
+    assert "适合知识库检索的独立问题" in prompt
+    assert "用户正在咨询低保申请。" in prompt
+    assert "刚才那个还要什么材料？" in prompt
 
 
 def test_event_assist_prompt_declares_strict_json_and_priority_rules() -> None:

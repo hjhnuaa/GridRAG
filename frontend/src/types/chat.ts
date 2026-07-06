@@ -9,6 +9,14 @@ export interface ChatAskRequest {
   filters: ChatFilters;
 }
 
+export interface ChatGuideRequest {
+  session_id: string;
+  instruction: string;
+  base_question: string;
+  partial_answer: string;
+  filters: ChatFilters;
+}
+
 export interface SourceItem {
   chunk_id?: string | null;
   doc_id?: string | null;
@@ -27,6 +35,7 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   sources?: SourceItem[] | null;
+  status?: "complete" | "interrupted";
   created_at: string;
 }
 
@@ -67,6 +76,8 @@ export interface ChatDebugResponse {
   reranked_candidates: RetrievalCandidate[];
   selected_sources: SourceItem[];
   memories: string[];
+  conversation_context: string[];
+  conversation_summary?: string | null;
   web_results: SourceItem[];
 }
 

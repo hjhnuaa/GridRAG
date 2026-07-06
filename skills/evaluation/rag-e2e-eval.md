@@ -8,7 +8,7 @@
 
 - `backend/tests/`：覆盖核心单元行为。
 - `frontend/src/components/RagDebugPanel/`：辅助人工检查链路。
-- `demo/low_income_policy_demo.txt`：可用于本地演示和手工验证。
+- `data/samples/knowledge/low_income_policy_demo.txt`：可用于本地演示和手工验证。
 
 ## 扩展方向
 

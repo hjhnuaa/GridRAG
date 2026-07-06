@@ -7,7 +7,7 @@
 ## 当前实现位置
 
 - `backend/app/api/v1/knowledge.py`：知识文件上传、删除、重建索引。
-- `demo/low_income_policy_demo.txt`：轻量演示知识文档。
+- `data/samples/knowledge/low_income_policy_demo.txt`：轻量演示知识文档。
 - `backend/app/models/document.py`：持久化文档记录。
 
 ## 扩展方向

@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     memory_max_items: int = 100
     memory_relevance_limit: int = 5
 
+    conversation_recent_turns: int = 6
+    conversation_summary_trigger_messages: int = 16
+    conversation_summary_max_chars: int = 1200
+    conversation_context_max_chars: int = 3000
+
     web_search_enabled: bool = False
     web_search_provider: str = "searxng"
     web_search_endpoint: str = ""

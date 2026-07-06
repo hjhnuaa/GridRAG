@@ -3,6 +3,7 @@ import { fetchEventSource } from "@microsoft/fetch-event-source";
 import type {
   ChatAskRequest,
   ChatDebugResponse,
+  ChatGuideRequest,
   ChatMessage,
   ChatSessionCreateRequest,
   ChatSessionDeleteResponse,
@@ -58,6 +59,72 @@ export async function startChatStream(
   };
 
   await fetchEventSource(`${API_BASE_URL}/chat/ask`, {
+    method: "POST",
+    headers: {
+      "Accept": "text/event-stream",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload),
+    signal,
+    async onopen(response) {
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+      }
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("text/event-stream")) {
+        throw new Error("服务端未返回流式响应。");
+      }
+      handlers.onOpen?.();
+    },
+    onmessage(event) {
+      if (!event.data) {
+        return;
+      }
+      let data: ChatStreamEvent;
+      try {
+        data = JSON.parse(event.data) as ChatStreamEvent;
+      } catch {
+        handlers.onError("流式响应解析失败。");
+        return;
+      }
+      if (data.type === "chunk") {
+        handlers.onChunk(data.content);
+      }
+      if (data.type === "sources") {
+        handlers.onSources(data.sources);
+      }
+      if (data.type === "error") {
+        handlers.onError(data.message);
+      }
+      if (data.type === "done") {
+        finish();
+      }
+    },
+    onerror(error) {
+      if (!isAbortError(error)) {
+        handlers.onError(error instanceof Error ? error.message : "流式连接中断。");
+        finish();
+      }
+      throw error;
+    }
+  });
+}
+
+export async function startGuidedChatStream(
+  payload: ChatGuideRequest,
+  handlers: ChatStreamHandlers,
+  signal: AbortSignal
+): Promise<void> {
+  let completed = false;
+
+  const finish = (): void => {
+    if (!completed) {
+      completed = true;
+      handlers.onDone();
+    }
+  };
+
+  await fetchEventSource(`${API_BASE_URL}/chat/guide`, {
     method: "POST",
     headers: {
       "Accept": "text/event-stream",

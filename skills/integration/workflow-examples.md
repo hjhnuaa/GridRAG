@@ -7,7 +7,7 @@
 ## 当前实现位置
 
 - `README.md`：描述政策咨询、工单填报、重点人群走访和日常复盘场景。
-- `demo/low_income_policy_demo.txt`：政策咨询演示文档。
+- `data/samples/knowledge/low_income_policy_demo.txt`：政策咨询演示文档。
 - `frontend/src/pages/`：各业务页面入口。
 
 ## 扩展方向

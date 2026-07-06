@@ -178,7 +178,7 @@ function MemoryStrip({ items }: { items: string[] }): JSX.Element {
       <div className="rag-section-head">
         <div>
           <div className="rag-section-kicker">记忆注入</div>
-          <h3>会话上下文</h3>
+          <h3>规则与记忆</h3>
         </div>
         <Tag color={items.length ? "cyan" : "default"}>{items.length} 条</Tag>
       </div>
@@ -192,6 +192,33 @@ function MemoryStrip({ items }: { items: string[] }): JSX.Element {
         </div>
       ) : (
         <Empty className="rag-debug-empty" description="本次调试未注入会话记忆" />
+      )}
+    </section>
+  );
+}
+
+function ConversationStrip({ summary, items }: { summary?: string | null; items: string[] }): JSX.Element {
+  const total = items.length + (summary ? 1 : 0);
+  return (
+    <section className="rag-debug-section">
+      <div className="rag-section-head">
+        <div>
+          <div className="rag-section-kicker">多轮上下文</div>
+          <h3>会话历史</h3>
+        </div>
+        <Tag color={total ? "purple" : "default"}>{total} 条</Tag>
+      </div>
+      {total ? (
+        <div className="rag-memory-list">
+          {summary ? <div className="rag-memory-item">摘要：{summary}</div> : null}
+          {items.map((item, index) => (
+            <div className="rag-memory-item" key={`${item}-${index}`}>
+              {item}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <Empty className="rag-debug-empty" description="本次调试未注入会话历史" />
       )}
     </section>
   );
@@ -268,7 +295,10 @@ export function RagDebugPanel({ data, loading }: RagDebugPanelProps): JSX.Elemen
           <pre className="rag-prompt-preview">{data.prompt_preview}</pre>
         </section>
 
-        <MemoryStrip items={data.memories} />
+        <div style={{ display: "grid", gap: 16 }}>
+          <ConversationStrip summary={data.conversation_summary} items={data.conversation_context} />
+          <MemoryStrip items={data.memories} />
+        </div>
       </div>
 
       <div className="rag-source-columns">
